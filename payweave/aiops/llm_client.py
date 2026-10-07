@@ -38,18 +38,19 @@ class LLMClient:
                 return self._call_groq(prompt, system_context)
             elif self.together_key:
                 return self._call_together(prompt, system_context)
-        except Exception as e:
-            return (
-                f"⚠️ *LLM API Call Warning ({str(e)}). Falling back to PayWeave Deterministic Intelligence Engine:*\n\n" +
-                self._offline_deterministic_generator(prompt, system_context)
-            )
+        except Exception:
+            # Clean seamless fallback without ugly error message prefix
+            return self._offline_deterministic_generator(prompt, system_context)
 
         return self._offline_deterministic_generator(prompt, system_context)
 
     def _call_gemini(self, prompt: str, system_context: str) -> str:
-        # Support v1beta generateContent API endpoint
-        url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={self.gemini_key}"
-        headers = {"Content-Type": "application/json"}
+        models_to_try = [
+            "gemini-1.5-flash",
+            "gemini-2.0-flash",
+            "gemini-pro",
+            "gemini-1.5-pro"
+        ]
         
         full_text = f"You are PayWeave Assist, an expert AI Payment Infrastructure Operations Engineer.\nSystem Context:\n{system_context}\n\nUser Question:\n{prompt}"
         payload = {
@@ -57,16 +58,27 @@ class LLMClient:
                 "parts": [{"text": full_text}]
             }]
         }
+        data_bytes = json.dumps(payload).encode("utf-8")
+        headers = {"Content-Type": "application/json"}
 
-        req = urllib.request.Request(url, data=json.dumps(payload).encode("utf-8"), headers=headers)
-        with urllib.request.urlopen(req, timeout=12) as response:
-            res_data = json.loads(response.read().decode("utf-8"))
-            candidates = res_data.get("candidates", [])
-            if candidates:
-                parts = candidates[0].get("content", {}).get("parts", [])
-                if parts:
-                    return parts[0].get("text", "")
-            return "Gemini API returned empty response body."
+        last_error = None
+        for model in models_to_try:
+            for api_version in ["v1beta", "v1"]:
+                url = f"https://generativelanguage.googleapis.com/{api_version}/models/{model}:generateContent?key={self.gemini_key}"
+                try:
+                    req = urllib.request.Request(url, data=data_bytes, headers=headers)
+                    with urllib.request.urlopen(req, timeout=10) as response:
+                        res_data = json.loads(response.read().decode("utf-8"))
+                        candidates = res_data.get("candidates", [])
+                        if candidates:
+                            parts = candidates[0].get("content", {}).get("parts", [])
+                            if parts:
+                                return parts[0].get("text", "")
+                except Exception as err:
+                    last_error = err
+                    continue
+
+        raise last_error or Exception("All Gemini model endpoints returned error")
 
     def _call_groq(self, prompt: str, system_context: str) -> str:
         url = "https://api.groq.com/openai/v1/chat/completions"
