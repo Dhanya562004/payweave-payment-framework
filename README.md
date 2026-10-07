@@ -1,30 +1,40 @@
 # PayWeave — Declarative Payment Application & Intelligent Infrastructure Framework
 
-[![PayWeave CI](https://github.com/Dhanya562004/payweave-payment-framework/actions/workflows/ci.yml/badge.svg)](https://github.com/Dhanya562004/payweave-payment-framework/actions)
-[![Python Version](https://img.shields.io/badge/python-3.11%2B-blue.svg)](https://www.python.org/)
-[![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
-[![Streamlit](https://img.shields.io/badge/Streamlit-1.35%2B-FF4B4B.svg)](https://streamlit.io/)
+<div align="center">
+
+# ⚡ PAYWEAVE
+
+**Declarative Payment Application & Intelligent Infrastructure Framework**
+
+[![Live Streamlit App](https://img.shields.io/badge/🚀_Live_Demo-Streamlit_Cloud-FF4B4B?style=for-the-badge&logo=streamlit)](https://payweave-payment-framework-pxtcmxmheexmcuyul6lkmy.streamlit.app/)
+[![GitHub CI](https://img.shields.io/github/actions/workflow/status/Dhanya562004/payweave-payment-framework/ci.yml?branch=main&style=for-the-badge&logo=github)](https://github.com/Dhanya562004/payweave-payment-framework/actions)
+[![Python Version](https://img.shields.io/badge/Python-3.11%2B-3776AB?style=for-the-badge&logo=python)](https://www.python.org/)
+[![License](https://img.shields.io/badge/License-MIT-green.style=for-the-badge)](LICENSE)
+
+[🌐 **Explore Live Application Demo**](https://payweave-payment-framework-pxtcmxmheexmcuyul6lkmy.streamlit.app/) • [📖 **API Docs**](#-api-endpoints-reference) • [🧪 **Test Suite**](#-running-automated-test-suite) • [⚡ **React SDK**](#-react-merchant-checkout-sdk)
+
+</div>
 
 ---
 
-## ⚡ What is PayWeave?
+## 🌟 What is PayWeave?
 
-**PayWeave** is a declarative payment application and intelligent infrastructure framework. Instead of writing monolithic payment orchestration code, PayWeave allows merchants to define end-to-end payment flows, adaptive authentication policies, dynamic provider routing, risk limits, and infrastructure topologies declaratively using **Declarative YAML DSL**.
+**PayWeave** is a declarative payment application and intelligent infrastructure framework. Instead of writing complex, hardcoded payment orchestration logic, PayWeave empowers merchants to define end-to-end payment flows, adaptive authentication security, dynamic provider routing, risk limits, and multi-datacenter topologies declaratively using **Declarative YAML DSL**.
 
-### Key Architectural Highlights
-- **Declarative Business Logic DSL**: Configure payment rules, risk thresholds, and fallback strategies without editing source code.
-- **Functional Rule Engine**: Monadic (`Result` / `Either`) payment execution pipelines based on pure functions and pattern matching. Exposes formal **Haskell Functional Core** specification alongside a portable Python reference runtime.
-- **Intelligent Payment Router**: Multi-factor dynamic PSP scoring algorithm balancing success rates, latency SLA, provider health, cost efficiency, and capacity.
-- **Automated Self-Healing System**: Real-time provider circuit breaking that detects network degradation, shifts traffic to healthy fallbacks, and logs recovery timelines.
-- **Automatic Anomaly Detection**: Statistical Z-score telemetry monitoring identifying latency spikes, success drops, and error rate bursts.
-- **Visual Low-Code Flow Builder**: Drag-and-drop workflow builder supporting bidirectional conversion between visual node graphs and YAML DSL specs.
-- **Multi-Data-Center & Edge Simulation**: Simulates primary/failover datacenters (DC-1 Mumbai / DC-2 Bengaluru) and edge node interception.
-- **AI Payment Operations (PayWeave Assist)**: Natural language operational query engine powered by Gemini/Groq/Together AI with a **100% deterministic offline fallback engine**.
-- **Configurable React Merchant Checkout SDK**: Pure TypeScript + React `<PayWeaveCheckout />` SDK for web integration.
+### 🎨 Key Engineering Highlights
+* 📜 **Declarative Business Logic DSL**: Configure payment rules, fraud thresholds, and fallback policies without code modification.
+* 🧮 **Functional Programming Core**: Monadic (`Result` / `Either`) payment execution pipelines. Exposes formal **Haskell Functional Core** specification alongside a portable Python reference runtime.
+* 🧠 **Intelligent Payment Router**: Multi-factor dynamic PSP scoring algorithm balancing success rates, latency SLAs, provider health, cost efficiency, and capacity.
+* 🛡️ **Automated Self-Healing System**: Real-time provider circuit breaking that detects network degradation, shifts live traffic to healthy fallbacks, and logs recovery audit timelines.
+* 📈 **Automatic Anomaly Detector**: Statistical Z-score telemetry monitoring identifying latency spikes, success drops, and error rate bursts.
+* 🧩 **Visual Low-Code Flow Builder**: Drag-and-drop workflow builder supporting bidirectional conversion between visual node graphs and YAML DSL specs.
+* 🌐 **Multi-Data-Center & Edge Simulation**: Simulates primary/failover datacenters (DC-1 Mumbai / DC-2 Bengaluru) and edge node worker pre-filtering.
+* 🤖 **AI Payment Operations (PayWeave Assist)**: Natural language query engine powered by Gemini / Groq / Together AI with a **100% deterministic offline fallback engine**.
+* ⚛️ **React Merchant Checkout SDK**: Pure TypeScript + React `<PayWeaveCheckout />` SDK for web integration.
 
 ---
 
-## 🏗️ System Architecture
+## 🏗️ System Architecture Topology
 
 ```mermaid
 graph TD
@@ -116,16 +126,6 @@ infrastructure:
 
 ---
 
-## 🧮 Functional Programming Architecture
-
-PayWeave emphasizes functional programming principles:
-- **Algebraic Data Types (ADTs)**: Clean domain representations (`PaymentRequest`, `ProviderHealth`, `AuthDecision`, `RoutingDecision`, `PaymentExecutionPlan`).
-- **Monadic Pipelines**: Immutable `Result[T, E]` / `Either` transformations chaining validation, risk evaluation, adaptive security, and routing.
-- **Haskell Functional Core**: Located in `functional-core/` (`PaymentTypes.hs`, `Rules.hs`, `Routing.hs`, `PayWeave.hs`) to demonstrate pure functional design.
-- **Portable Python Reference Runtime**: Implemented in `payweave/runtime/functional_core.py` so the Streamlit application deploys reliably on Streamlit Cloud without requiring Haskell GHC compilers.
-
----
-
 ## 🧠 Intelligent Provider Routing Algorithm
 
 The Intelligent Router calculates a composite score for each candidate provider:
@@ -136,7 +136,7 @@ $$\text{Score} = w_{\text{succ}} \cdot S + w_{\text{lat}} \cdot \left(1 - \frac{
 1. `intelligent`: Dynamic multi-weighted decision balancing all factors.
 2. `highest_success_rate`: Prioritizes provider with highest rolling success rate.
 3. `lowest_latency`: Prioritizes ultra-low latency providers.
-4. `lowest_cost`: Minimizes transaction processing fees.
+4. `lowest_cost`: Minimizes transaction processing interchange fees.
 5. `balanced`: Equal weight distribution across factors.
 
 ---
@@ -158,11 +158,11 @@ When network latency spikes or provider success rates fall below configured SLAs
 
 ---
 
-## 🤖 AI Payment Operations & Offline Fallback
+## 🤖 AI Payment Operations & Seamless Fallback
 
-**PayWeave Assist** answers natural language questions regarding system performance, outage causes, and cost optimization.
-- **LLM Integration**: Configurable via `GEMINI_API_KEY`, `GROQ_API_KEY`, or `TOGETHER_API_KEY`.
-- **100% Deterministic Offline Fallback**: If no API key is provided, PayWeave utilizes a rule-based deterministic response engine. The application **never** breaks due to a missing API key.
+**PayWeave Assist** answers natural language questions regarding system performance, outage root causes, and cost optimization.
+- **LLM Integration**: Supports Gemini, Groq, and Together AI API keys.
+- **100% Deterministic Fallback**: If no API key is provided or if an API rate limit occurs, PayWeave utilizes a built-in deterministic response engine. The application **never** breaks due to a missing API key.
 
 ---
 
@@ -173,8 +173,8 @@ Located in `sdk/react/`:
 - Interactive UPI Intent, VPA validation, Card tokenization simulation, and One-Click checkout.
 - Dynamic theme (`dark_glass`, `vibrant_fintech`) and layout modes (`compact`, `standard`).
 
-### Run React SDK Demo locally
 ```bash
+# Run React SDK Demo locally
 cd sdk/react
 npm install
 npm run dev
@@ -186,7 +186,7 @@ npm run dev
 
 ### Prerequisites
 - Python 3.11+
-- Node.js 18+ (optional, for React SDK)
+- Node.js 18+ *(optional, for React SDK)*
 
 ### 1. Clone Repository & Setup Virtual Environment
 ```bash
@@ -218,22 +218,10 @@ Interactive API Documentation available at `http://localhost:8000/docs`.
 
 ## 🧪 Running Automated Test Suite
 
-PayWeave contains **43 automated test cases** covering DSL parsing, semantic validation, functional rules, routing algorithms, self-healing, anomaly detection, infrastructure simulation, and REST endpoints.
+PayWeave contains **43 automated unit & API test cases** covering DSL parsing, semantic validation, functional rules, routing algorithms, self-healing, anomaly detection, infrastructure simulation, and REST endpoints.
 
 ```bash
 python -m pytest
-```
-
----
-
-## 🐳 Docker Deployment
-
-```bash
-# Build Docker image
-docker build -t payweave-framework .
-
-# Run Docker container
-docker run -p 8501:8501 -p 8000:8000 payweave-framework
 ```
 
 ---
@@ -252,6 +240,12 @@ docker run -p 8501:8501 -p 8000:8000 payweave-framework
 | `GET` | `/metrics` | Fetches live telemetry summary & provider health |
 | `GET` | `/providers` | Returns list of configured mock PSP adapters |
 | `GET` / `POST` | `/merchant/config` | Get or update active merchant DSL configuration |
+
+---
+
+## 🌐 Live Application Link
+
+- **Live Streamlit App**: [https://payweave-payment-framework-pxtcmxmheexmcuyul6lkmy.streamlit.app/](https://payweave-payment-framework-pxtcmxmheexmcuyul6lkmy.streamlit.app/)
 
 ---
 
