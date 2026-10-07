@@ -1,0 +1,64 @@
+merchant:
+  id: merchant_ultra_reliable
+  name: High Availability Enterprise
+  environment: simulation
+
+payment:
+  methods:
+    - upi
+    - card
+  currencies:
+    - INR
+    - USD
+    - EUR
+  default_method: card
+
+routing:
+  strategy: highest_success_rate
+  prefer:
+    - highest_success_rate
+    - lowest_latency
+  weights:
+    success_rate: 0.60
+    health: 0.25
+    latency: 0.15
+    cost: 0.00
+    capacity: 0.00
+  fallback:
+    enabled: true
+    max_retries: 3
+    fallback_providers:
+      - psp-a
+      - psp-b
+      - psp-c
+
+authentication:
+  mode: always_2fa
+  step_up_threshold: 0.40
+  require_2fa_above_amount: 1000.0
+
+risk:
+  max_score: 0.50
+  block_high_risk: true
+  velocity_limit_per_min: 50
+
+anomaly:
+  enabled: true
+  threshold: 0.50
+  z_score_threshold: 2.0
+
+infrastructure:
+  primary_dc: dc1
+  failover_dc: dc2
+  edge_enabled: true
+  max_latency_ms: 200.0
+
+payment_page:
+  layout: standard
+  theme: dark_glass
+  methods:
+    - card
+    - upi
+  show_saved_payment: true
+  brand_name: Enterprise Secure Pay
+  primary_color: "#10B981"

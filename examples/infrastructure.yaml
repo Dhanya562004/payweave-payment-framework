@@ -1,0 +1,41 @@
+region: asia_south
+primary_dc: dc1
+failover_dc: dc2
+
+datacenters:
+  dc1:
+    name: Mumbai Primary Data Center
+    capacity: 1000
+    providers:
+      - psp-a
+      - psp-b
+    status: healthy
+    baseline_latency_ms: 45.0
+  dc2:
+    name: Bengaluru Secondary Data Center
+    capacity: 1000
+    providers:
+      - psp-b
+      - psp-c
+    status: healthy
+    baseline_latency_ms: 60.0
+
+edge:
+  enabled: true
+  nodes:
+    - id: edge_delhi
+      location: Delhi NCR
+      nearest_dc: dc1
+      latency_overhead_ms: 12.0
+    - id: edge_mumbai
+      location: Mumbai Region
+      nearest_dc: dc1
+      latency_overhead_ms: 5.0
+    - id: edge_bengaluru
+      location: Bengaluru Tech Park
+      nearest_dc: dc2
+      latency_overhead_ms: 8.0
+
+routing:
+  failover: automatic
+  health_check_interval_sec: 5

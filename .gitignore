@@ -1,0 +1,48 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+*.sqlite3
+*.db
+payweave_local.db
+
+# Virtual environments
+venv/
+ENV/
+env/
+
+# IDE / OS
+.idea/
+.vscode/
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
+
+# Node / React SDK
+node_modules/
+sdk/react/node_modules/
+sdk/react/dist/
+
+# Pytest / Coverage
+.pytest_cache/
+.coverage
+htmlcov/

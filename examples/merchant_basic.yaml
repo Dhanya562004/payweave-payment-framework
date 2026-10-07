@@ -1,0 +1,62 @@
+merchant:
+  id: merchant_demo
+  name: Demo Store Inc.
+  environment: simulation
+
+payment:
+  methods:
+    - upi
+    - card
+  currencies:
+    - INR
+    - USD
+  default_method: upi
+
+routing:
+  strategy: intelligent
+  prefer:
+    - lowest_latency
+    - highest_success_rate
+  weights:
+    success_rate: 0.40
+    latency: 0.30
+    health: 0.15
+    cost: 0.10
+    capacity: 0.05
+  fallback:
+    enabled: true
+    max_retries: 2
+    fallback_providers:
+      - psp-b
+      - psp-c
+
+authentication:
+  mode: adaptive
+  step_up_threshold: 0.75
+  require_2fa_above_amount: 10000.0
+
+risk:
+  max_score: 0.80
+  block_high_risk: true
+  velocity_limit_per_min: 100
+
+anomaly:
+  enabled: true
+  threshold: 0.65
+  z_score_threshold: 2.5
+
+infrastructure:
+  primary_dc: dc1
+  failover_dc: dc2
+  edge_enabled: true
+  max_latency_ms: 350.0
+
+payment_page:
+  layout: compact
+  theme: vibrant_fintech
+  methods:
+    - upi
+    - card
+  show_saved_payment: true
+  brand_name: Demo Store
+  primary_color: "#6366F1"

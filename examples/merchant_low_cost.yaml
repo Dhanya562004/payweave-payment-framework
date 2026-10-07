@@ -1,0 +1,59 @@
+merchant:
+  id: merchant_budget
+  name: Value Marketplace
+  environment: simulation
+
+payment:
+  methods:
+    - upi
+    - card
+  currencies:
+    - INR
+  default_method: upi
+
+routing:
+  strategy: lowest_cost
+  prefer:
+    - lowest_cost
+  weights:
+    cost: 0.60
+    success_rate: 0.20
+    latency: 0.10
+    health: 0.10
+    capacity: 0.00
+  fallback:
+    enabled: true
+    max_retries: 1
+    fallback_providers:
+      - psp-c
+      - psp-a
+
+authentication:
+  mode: frictionless
+  step_up_threshold: 0.85
+  require_2fa_above_amount: 100000.0
+
+risk:
+  max_score: 0.90
+  block_high_risk: false
+  velocity_limit_per_min: 200
+
+anomaly:
+  enabled: true
+  threshold: 0.80
+  z_score_threshold: 3.0
+
+infrastructure:
+  primary_dc: dc2
+  failover_dc: dc1
+  edge_enabled: false
+  max_latency_ms: 600.0
+
+payment_page:
+  layout: compact
+  theme: light_corporate
+  methods:
+    - upi
+  show_saved_payment: false
+  brand_name: Value Pay
+  primary_color: "#F59E0B"
