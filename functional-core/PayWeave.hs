@@ -1,27 +1,27 @@
--- PayWeave Haskell Functional Core: Main Pipeline Composition
--- Demonstrates monadic composition via Either monad >>= (bind) operators
+-- PayWeave Haskell Functional Core: Monadic Pipeline Composition
+-- Demonstrates monadic composition via Either PaymentError monad >>= (bind) operators
 
 module PayWeave where
 
 import PaymentTypes
-import Rules
+import PaymentRules
 import Routing
 
 -- | Pure Functional Pipeline: Request -> ExecutionPlan
-buildPlan :: MerchantConfig -> [ProviderHealth] -> PaymentRequest -> Either String PaymentExecutionPlan
+buildPlan :: MerchantConfig -> [ProviderHealth] -> PaymentRequest -> Either PaymentError PaymentExecutionPlan
 buildPlan cfg providers req = do
-  validReq <- validateRequest cfg req
+  validReq <- validatePaymentRequest cfg req
   riskDec  <- evaluateRisk cfg validReq
-  let authDec  = determineAuth cfg validReq riskDec
-  let (SelectedPSP target score fallbacks rationale) = selectBestProvider providers
-  let req2FA   = case authDec of
-                   Auth2FARequired _ -> True
-                   AuthFrictionless  -> False
-  Right $ ExecutionPlan
+  routing  <- chooseProvider providers
+  let authDec = decideAuthentication cfg validReq riskDec
+  let req2FA  = case authDec of
+                  Auth2FARequired _ -> True
+                  AuthFrictionless  -> False
+  return ExecutionPlan
     { planReqId          = requestId req
-    , planTargetProvider = target
+    , planTargetProvider = selectedProvider routing
     , planRequires2FA    = req2FA
-    , planFallbackChain  = fallbacks
+    , planFallbackChain  = fallbackChain routing
     , planEstimatedLat   = 120.0
-    , planRationale      = rationale
+    , planRationale      = rationale routing
     }

@@ -1,0 +1,16 @@
+Metric Domain,Metric Name,Measured Value,Unit / Context
+Routing,Total Workload,1000,requests
+Routing,Throughput,23468.23,req/sec
+Routing,Mean Latency,0.0293,ms
+Routing,Median Latency,0.0219,ms
+Routing,P95 Latency,0.0408,ms
+Routing,P99 Latency,0.0932,ms
+Routing Allocation,Provider PSP-B Allocation,100.0,%
+Failover,Stage 1 PSP-A Count,100,requests
+Failover,Stage 2 Degraded PSP-A Count,0,requests
+Failover,Rerouted Requests Count,100,requests
+Failover,Decision Latency,0.0512,ms
+Anomaly Detection,Total Observations,2000,records
+Anomaly Detection,Anomalies Flagged,10,events
+Anomaly Detection,Mean Batch Latency,0.0532,ms
+Anomaly Detection,P95 Batch Latency,0.0871,ms

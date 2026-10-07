@@ -1,0 +1,36 @@
+{
+  "router_benchmark": {
+    "benchmark_name": "Intelligent Router Performance Benchmark",
+    "timestamp": "2026-10-07 17:41:49",
+    "random_seed": 42,
+    "workload_size": 1000,
+    "routing_strategy": "intelligent",
+    "total_duration_seconds": 0.0426,
+    "throughput_requests_per_sec": 23468.23,
+    "successful_decisions": 1000,
+    "failed_decisions": 0,
+    "provider_distribution_counts": {
+      "psp-b": 1000
+    },
+    "provider_distribution_pct": {
+      "psp-b": 100.0
+    },
+    "latency_stats_ms": {
+      "mean": 0.0293,
+      "median": 0.0219,
+      "p95": 0.0408,
+      "p99": 0.0932,
+      "min": 0.0207,
+      "max": 2.613
+    }
+  },
+  "failover_benchmark": {
+    "benchmark_name": "Provider Failover & Rerouting Benchmark",
+    "stage1_healthy_psp_a_count": 100,
+    "stage2_degraded_psp_a_count": 0,
+    "rerouted_requests_count": 100,
+    "failover_decision_latency_ms": 0.0512,
+    "stage3_recovered_psp_a_count": 0,
+    "failover_successful": true
+  }
+}

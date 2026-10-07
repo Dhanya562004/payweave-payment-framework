@@ -1,13 +1,25 @@
--- PayWeave Haskell Functional Core: Type Definitions
--- Demonstrates Pure Functional Architecture using Algebraic Data Types (ADTs)
+-- PayWeave Haskell Functional Core: Type Definitions & Domain ADTs
+-- Demonstrates pure functional architecture, immutable data models, and explicit domain errors.
 
 module PaymentTypes where
 
-import Data.Time (UTCTime)
-
--- | Payment Methods ADT
-data PaymentMethod = UPI | Card | NetBanking
+-- | Supported Payment Methods ADT
+data PaymentMethod = UPI | Card | NetBanking | Wallet
   deriving (Eq, Show, Read)
+
+-- | Provider Identification Type Alias
+type Provider = String
+
+-- | Explicit Domain Failure Types ADT
+-- Prefers type-safe error structures over uncontrolled exception throwing
+data PaymentError
+  = InvalidAmount Double
+  | UnsupportedCurrency String
+  | RiskThresholdExceeded Double Double
+  | InvalidCustomer String
+  | NoHealthyProvider
+  | SystemError String
+  deriving (Eq, Show)
 
 -- | Authentication Security Mode ADT
 data AuthMode = Frictionless | Adaptive | Always2FA
@@ -23,16 +35,17 @@ data PaymentRequest = PaymentRequest
   , riskScore     :: Double
   } deriving (Eq, Show)
 
--- | Provider Operational Metrics ADT
+-- | Provider Operational Metrics Record
 data ProviderHealth = ProviderHealth
-  { providerId    :: String
+  { providerId    :: Provider
   , successRate   :: Double
   , latencyMs     :: Double
   , costScore     :: Double
+  , capacityPct   :: Double
   , isHealthy     :: Bool
   } deriving (Eq, Show)
 
--- | Merchant Declarative Configuration Record
+-- | Merchant Configuration Record
 data MerchantConfig = MerchantConfig
   { merchantId    :: String
   , maxRiskScore  :: Double
@@ -42,22 +55,28 @@ data MerchantConfig = MerchantConfig
   , fallbackDC    :: String
   } deriving (Eq, Show)
 
--- | Decisions ADTs
+-- | Domain Decision ADTs
 data RiskDecision = RiskAllowed Double | RiskBlocked Double String
   deriving (Eq, Show)
 
-data AuthDecision = Auth2FARequired String | AuthFrictionless
+data AuthenticationDecision
+  = Auth2FARequired String
+  | AuthFrictionless
   deriving (Eq, Show)
 
-data RoutingDecision = SelectedPSP String Double [String] String
-  deriving (Eq, Show)
+data RoutingDecision = SelectedPSP
+  { selectedProvider :: Provider
+  , routingScore     :: Double
+  , fallbackChain    :: [Provider]
+  , rationale        :: String
+  } deriving (Eq, Show)
 
--- | Immutable Payment Execution Plan ADT
+-- | Immutable Payment Execution Plan Record
 data PaymentExecutionPlan = ExecutionPlan
   { planReqId           :: String
-  , planTargetProvider  :: String
+  , planTargetProvider  :: Provider
   , planRequires2FA     :: Bool
-  , planFallbackChain   :: [String]
+  , planFallbackChain   :: [Provider]
   , planEstimatedLat    :: Double
   , planRationale       :: String
   } deriving (Eq, Show)
