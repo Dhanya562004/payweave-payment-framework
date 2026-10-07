@@ -291,7 +291,7 @@ def apply_plotly_theme(fig):
         xaxis=dict(gridcolor="rgba(255,255,255,0.06)", zerolinecolor="rgba(255,255,255,0.1)"),
         yaxis=dict(gridcolor="rgba(255,255,255,0.06)", zerolinecolor="rgba(255,255,255,0.1)"),
         margin=dict(l=20, r=20, t=40, b=20),
-        legend=dict(bg_color="rgba(30,41,59,0.5)")
+        legend=dict(bgcolor="rgba(30,41,59,0.5)")
     )
     return fig
 
