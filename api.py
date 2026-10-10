@@ -10,12 +10,13 @@ from typing import Dict, Any, List, Optional
 import time
 import os
 import json
+import uuid
 
 from payweave.dsl.schema import MerchantConfig
 from payweave.dsl.parser import DSLParser
 from payweave.dsl.validator import DSLValidator
 from payweave.runtime.engine import PayWeaveEngine
-from payweave.runtime.functional_core import PaymentRequest
+from payweave.runtime.functional_core import PaymentRequest, PaymentState
 from payweave.anomaly.detector import AnomalyDetector
 from payweave.anomaly.simulator import TelemetrySimulator
 from payweave.infrastructure.multi_dc import MultiDCSimulator
@@ -63,6 +64,29 @@ class AnomalyDetectRequest(BaseModel):
 class InfraSimulateRequest(BaseModel):
     action: str = Field(..., description="simulate_dc_failure or recover_dc")
     dc_id: str = Field(default="dc1", description="Target data center ID")
+
+
+class CreatePaymentRequest(BaseModel):
+    amount: float = Field(default=1500.0, gt=0)
+    currency: str = Field(default="INR")
+    payment_method: str = Field(default="upi")
+    customer_id: str = Field(default="cust_api_demo")
+    idempotency_key: Optional[str] = Field(default=None, description="Client idempotency key")
+
+
+class WebhookRequest(BaseModel):
+    event_id: str = Field(..., description="Unique provider webhook event ID")
+    payment_id: str = Field(..., description="Target PayWeave payment ID")
+    event_type: str = Field(default="PAYMENT_CAPTURED", description="Provider webhook event type")
+    new_status: Optional[str] = Field(default="SUCCEEDED", description="Target payment status")
+    payload: Optional[Dict[str, Any]] = Field(default_factory=dict)
+
+
+class RefundRequest(BaseModel):
+    payment_id: str = Field(..., description="Target payment ID to refund")
+    amount: float = Field(..., gt=0, description="Refund amount")
+    idempotency_key: Optional[str] = Field(default=None, description="Client refund idempotency key")
+    reason: Optional[str] = Field(default="customer_request", description="Reason for refund")
 
 
 # Endpoints
@@ -140,6 +164,72 @@ def simulate_payment(body: PaymentSimulateRequest):
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/payment/create", summary="Create New Payment Order")
+def create_payment(body: CreatePaymentRequest):
+    payment_id = f"pay_{uuid.uuid4().hex[:10]}"
+    payment, is_new = engine.db.create_or_get_payment(
+        payment_id=payment_id,
+        amount=body.amount,
+        currency=body.currency,
+        payment_method=body.payment_method,
+        customer_id=body.customer_id,
+        idempotency_key=body.idempotency_key
+    )
+    return {
+        "payment": payment,
+        "is_new": is_new,
+        "message": "Payment created successfully" if is_new else "Existing payment returned for idempotency key"
+    }
+
+
+@app.post("/payment/webhook", summary="Process Simulated Provider Webhook / Callback")
+def process_webhook(body: WebhookRequest):
+    new_status = None
+    if body.new_status:
+        try:
+            new_status = PaymentState(body.new_status.upper())
+        except ValueError:
+            raise HTTPException(status_code=400, detail=f"Invalid payment status '{body.new_status}'.")
+
+    res = engine.db.process_webhook(
+        event_id=body.event_id,
+        payment_id=body.payment_id,
+        event_type=body.event_type,
+        new_status=new_status,
+        payload=body.payload
+    )
+    if res.is_error:
+        raise HTTPException(status_code=400, detail=res.error())
+    return res.unwrap()
+
+
+@app.post("/payment/refund", summary="Process Payment Refund")
+def process_refund(body: RefundRequest):
+    refund_id = f"ref_{uuid.uuid4().hex[:10]}"
+    res = engine.db.process_refund(
+        refund_id=refund_id,
+        payment_id=body.payment_id,
+        amount=body.amount,
+        idempotency_key=body.idempotency_key,
+        reason=body.reason or "customer_request"
+    )
+    if res.is_error:
+        raise HTTPException(status_code=400, detail=res.error())
+    return res.unwrap()
+
+
+@app.get("/payment/{payment_id}", summary="Get Payment Details & Audit Trail")
+def get_payment_details(payment_id: str):
+    payment = engine.db.get_payment(payment_id)
+    if not payment:
+        raise HTTPException(status_code=404, detail=f"Payment '{payment_id}' not found.")
+    audit_trail = engine.db.get_payment_audit_trail(payment_id)
+    return {
+        "payment": payment,
+        "audit_trail": audit_trail
+    }
 
 
 @app.post("/payment/flow", summary="Generate Visual Flow Graph")

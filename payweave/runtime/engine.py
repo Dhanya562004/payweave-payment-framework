@@ -17,13 +17,13 @@ from payweave.providers.mock_psp_b import MockPSPAdapterB
 from payweave.providers.mock_psp_c import MockPSPAdapterC
 from payweave.routing.provider_health import ProviderHealthTracker
 from payweave.routing.self_healing import SelfHealingEngine
-from payweave.storage.database import PayWeaveDatabase
 
 
 class PayWeaveEngine:
     """Master PayWeave Runtime Engine."""
 
     def __init__(self, config: MerchantConfig = None, db_path: str = "payweave_local.db"):
+        from payweave.storage.database import PayWeaveDatabase
         self.config = config or MerchantConfig()
         self.db = PayWeaveDatabase(db_path=db_path)
         

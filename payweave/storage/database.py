@@ -1,15 +1,18 @@
 """
 PayWeave SQLite Database Storage.
 Provides persistence for merchant DSL configurations, transaction history,
-self-healing audit timelines, anomaly logs, and system metrics.
+self-healing audit timelines, anomaly logs, system metrics,
+and ACID-consistent payment lifecycles (payments, audit trails, idempotent webhooks, and refunds).
 """
 
 import sqlite3
 import json
 import time
-from typing import Dict, Any, List, Optional
+import hashlib
+from typing import Dict, Any, List, Optional, Tuple
 from payweave.dsl.schema import MerchantConfig
 from payweave.dsl.parser import DSLParser
+from payweave.runtime.functional_core import PaymentState, transition_payment_state, Result
 
 
 class PayWeaveDatabase:
@@ -38,7 +41,7 @@ class PayWeaveDatabase:
                 )
             """)
 
-            # Transactions table
+            # Legacy transactions table
             cursor.execute("""
                 CREATE TABLE IF NOT EXISTS transactions (
                     transaction_id TEXT PRIMARY KEY,
@@ -55,6 +58,60 @@ class PayWeaveDatabase:
                     status_code TEXT,
                     message TEXT,
                     created_at REAL
+                )
+            """)
+
+            # Payments table with finite lifecycle states
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS payments (
+                    payment_id TEXT PRIMARY KEY,
+                    idempotency_key TEXT UNIQUE,
+                    amount REAL NOT NULL,
+                    currency TEXT NOT NULL,
+                    payment_method TEXT NOT NULL,
+                    customer_id TEXT NOT NULL,
+                    status TEXT NOT NULL,
+                    provider_used TEXT,
+                    refunded_amount REAL DEFAULT 0.0,
+                    created_at REAL NOT NULL,
+                    updated_at REAL NOT NULL
+                )
+            """)
+
+            # Transactional Payment Audit Trail
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS payment_audit_trail (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    payment_id TEXT NOT NULL,
+                    from_state TEXT,
+                    to_state TEXT NOT NULL,
+                    event_type TEXT NOT NULL,
+                    details TEXT,
+                    created_at REAL NOT NULL
+                )
+            """)
+
+            # Idempotent Webhook Events Store
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS processed_webhooks (
+                    event_id TEXT PRIMARY KEY,
+                    payment_id TEXT NOT NULL,
+                    event_type TEXT NOT NULL,
+                    payload_hash TEXT,
+                    processed_at REAL NOT NULL
+                )
+            """)
+
+            # Refunds Ledger with Cumulative Limits
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS refunds (
+                    refund_id TEXT PRIMARY KEY,
+                    payment_id TEXT NOT NULL,
+                    idempotency_key TEXT UNIQUE,
+                    amount REAL NOT NULL,
+                    status TEXT NOT NULL,
+                    reason TEXT,
+                    created_at REAL NOT NULL
                 )
             """)
 
@@ -86,6 +143,8 @@ class PayWeaveDatabase:
 
             conn.commit()
 
+    # --- Merchant Configuration Persistence ---
+
     def save_merchant_config(self, config: MerchantConfig, user_role: str = "Merchant Admin") -> None:
         yaml_content = DSLParser.to_yaml(config)
         now = time.time()
@@ -112,6 +171,258 @@ class PayWeaveDatabase:
                 return config
         return None
 
+    # --- Payment State Machine & Lifecycle Persistence ---
+
+    def create_or_get_payment(
+        self,
+        payment_id: str,
+        amount: float,
+        currency: str,
+        payment_method: str,
+        customer_id: str,
+        idempotency_key: Optional[str] = None
+    ) -> Tuple[Dict[str, Any], bool]:
+        """
+        Creates a payment record in CREATED state with idempotency protection.
+        Returns (payment_dict, is_new).
+        """
+        now = time.time()
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
+            if idempotency_key:
+                cursor.execute("SELECT * FROM payments WHERE idempotency_key = ?", (idempotency_key,))
+                existing = cursor.fetchone()
+                if existing:
+                    return dict(existing), False
+
+            cursor.execute("""
+                INSERT INTO payments (
+                    payment_id, idempotency_key, amount, currency, payment_method,
+                    customer_id, status, provider_used, refunded_amount, created_at, updated_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 0.0, ?, ?)
+            """, (payment_id, idempotency_key, amount, currency, payment_method,
+                  customer_id, PaymentState.CREATED.value, None, now, now))
+
+            cursor.execute("""
+                INSERT INTO payment_audit_trail (payment_id, from_state, to_state, event_type, details, created_at)
+                VALUES (?, NULL, ?, 'PAYMENT_CREATED', 'Payment initiated via checkout', ?)
+            """, (payment_id, PaymentState.CREATED.value, now))
+
+            conn.commit()
+            cursor.execute("SELECT * FROM payments WHERE payment_id = ?", (payment_id,))
+            return dict(cursor.fetchone()), True
+
+    def transition_payment(
+        self,
+        payment_id: str,
+        to_state: PaymentState,
+        event_type: str = "STATE_TRANSITION",
+        details: str = "",
+        provider_used: Optional[str] = None
+    ) -> Result[Dict[str, Any], str]:
+        """
+        Executes an atomic payment state transition guarded by the state machine invariants.
+        """
+        now = time.time()
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("SELECT * FROM payments WHERE payment_id = ?", (payment_id,))
+            row = cursor.fetchone()
+            if not row:
+                return Result.fail(f"Payment with ID {payment_id} does not exist.")
+
+            current_status = PaymentState(row["status"])
+            transition_res = transition_payment_state(current_status, to_state)
+            if transition_res.is_error:
+                return Result.fail(transition_res.error())
+
+            used_p = provider_used or row["provider_used"]
+            cursor.execute("""
+                UPDATE payments
+                SET status = ?, provider_used = ?, updated_at = ?
+                WHERE payment_id = ?
+            """, (to_state.value, used_p, now, payment_id))
+
+            cursor.execute("""
+                INSERT INTO payment_audit_trail (payment_id, from_state, to_state, event_type, details, created_at)
+                VALUES (?, ?, ?, ?, ?, ?)
+            """, (payment_id, current_status.value, to_state.value, event_type, details, now))
+
+            conn.commit()
+            cursor.execute("SELECT * FROM payments WHERE payment_id = ?", (payment_id,))
+            return Result.ok(dict(cursor.fetchone()))
+
+    def process_webhook(
+        self,
+        event_id: str,
+        payment_id: str,
+        event_type: str,
+        new_status: Optional[PaymentState] = None,
+        payload: Optional[Dict[str, Any]] = None
+    ) -> Result[Dict[str, Any], str]:
+        """
+        Idempotent provider callback/webhook processor.
+        Validates event ID, ignores duplicates, and ensures states/balances are never changed twice.
+        """
+        now = time.time()
+        payload_str = json.dumps(payload or {}, sort_keys=True)
+        payload_hash = hashlib.sha256(payload_str.encode("utf-8")).hexdigest()
+
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
+            # 1. Check if event_id has already been processed
+            cursor.execute("SELECT * FROM processed_webhooks WHERE event_id = ?", (event_id,))
+            existing_event = cursor.fetchone()
+            if existing_event:
+                cursor.execute("SELECT * FROM payments WHERE payment_id = ?", (payment_id,))
+                p_row = cursor.fetchone()
+                return Result.ok({
+                    "status": "DUPLICATE_IGNORED",
+                    "event_id": event_id,
+                    "payment_id": payment_id,
+                    "payment": dict(p_row) if p_row else None,
+                    "message": f"Webhook event {event_id} has already been processed. Ignored duplicate."
+                })
+
+            # 2. Check if target payment exists
+            cursor.execute("SELECT * FROM payments WHERE payment_id = ?", (payment_id,))
+            p_row = cursor.fetchone()
+            if not p_row:
+                return Result.fail(f"Target payment {payment_id} not found for webhook.")
+
+            # 3. Transition payment state if requested
+            if new_status:
+                current_status = PaymentState(p_row["status"])
+                # If payment is already in terminal SUCCEEDED or FAILED and receives identical webhook, keep state
+                if current_status == new_status:
+                    details = f"Webhook {event_id} confirmed existing state {new_status.value}."
+                else:
+                    trans_res = transition_payment_state(current_status, new_status)
+                    if trans_res.is_error:
+                        return Result.fail(f"Webhook state transition failed: {trans_res.error()}")
+                    cursor.execute("""
+                        UPDATE payments SET status = ?, updated_at = ? WHERE payment_id = ?
+                    """, (new_status.value, now, payment_id))
+                    details = f"Webhook {event_id} transitioned state from {current_status.value} to {new_status.value}."
+            else:
+                details = f"Webhook {event_id} logged event {event_type}."
+
+            # 4. Record event into processed_webhooks and audit trail atomically
+            cursor.execute("""
+                INSERT INTO processed_webhooks (event_id, payment_id, event_type, payload_hash, processed_at)
+                VALUES (?, ?, ?, ?, ?)
+            """, (event_id, payment_id, event_type, payload_hash, now))
+
+            cursor.execute("""
+                INSERT INTO payment_audit_trail (payment_id, from_state, to_state, event_type, details, created_at)
+                VALUES (?, ?, ?, ?, ?, ?)
+            """, (payment_id, p_row["status"], new_status.value if new_status else p_row["status"],
+                  f"WEBHOOK_{event_type}", details, now))
+
+            conn.commit()
+            cursor.execute("SELECT * FROM payments WHERE payment_id = ?", (payment_id,))
+            return Result.ok({
+                "status": "PROCESSED",
+                "event_id": event_id,
+                "payment_id": payment_id,
+                "payment": dict(cursor.fetchone()),
+                "message": f"Webhook {event_id} processed successfully."
+            })
+
+    def process_refund(
+        self,
+        refund_id: str,
+        payment_id: str,
+        amount: float,
+        idempotency_key: Optional[str] = None,
+        reason: str = "Customer requested refund"
+    ) -> Result[Dict[str, Any], str]:
+        """
+        Processes a refund with strict idempotency and cumulative limit enforcement.
+        Rejects refunds exceeding initial captured amount or for non-succeeded payments.
+        """
+        if amount <= 0:
+            return Result.fail("Refund amount must be greater than zero.")
+
+        now = time.time()
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
+
+            # 1. Idempotency check on refund
+            if idempotency_key:
+                cursor.execute("SELECT * FROM refunds WHERE idempotency_key = ?", (idempotency_key,))
+                existing_refund = cursor.fetchone()
+                if existing_refund:
+                    return Result.ok({
+                        "status": "DUPLICATE_IDEMPOTENT",
+                        "refund": dict(existing_refund),
+                        "message": "Refund already processed with this idempotency key."
+                    })
+
+            # 2. Check payment status and capture amount
+            cursor.execute("SELECT * FROM payments WHERE payment_id = ?", (payment_id,))
+            payment = cursor.fetchone()
+            if not payment:
+                return Result.fail(f"Payment {payment_id} does not exist.")
+
+            if payment["status"] != PaymentState.SUCCEEDED.value:
+                return Result.fail(
+                    f"Refunds can only be processed for SUCCEEDED payments. Current status: {payment['status']}."
+                )
+
+            current_refunded = payment["refunded_amount"]
+            total_amount = payment["amount"]
+
+            # 3. Enforce cumulative refund limit
+            if (current_refunded + amount) > (total_amount + 1e-6):
+                return Result.fail(
+                    f"Cumulative refund amount (₹{current_refunded + amount:.2f}) exceeds total payment captured (₹{total_amount:.2f})."
+                )
+
+            # 4. Record refund and update payment atomically
+            new_refunded = current_refunded + amount
+            cursor.execute("""
+                UPDATE payments SET refunded_amount = ?, updated_at = ? WHERE payment_id = ?
+            """, (new_refunded, now, payment_id))
+
+            cursor.execute("""
+                INSERT INTO refunds (refund_id, payment_id, idempotency_key, amount, status, reason, created_at)
+                VALUES (?, ?, ?, ?, 'COMPLETED', ?, ?)
+            """, (refund_id, payment_id, idempotency_key, amount, reason, now))
+
+            cursor.execute("""
+                INSERT INTO payment_audit_trail (payment_id, from_state, to_state, event_type, details, created_at)
+                VALUES (?, ?, ?, 'REFUND_PROCESSED', ?, ?)
+            """, (payment_id, payment["status"], payment["status"],
+                  f"Processed refund of ₹{amount:,.2f} ({reason}). Total refunded: ₹{new_refunded:,.2f}.", now))
+
+            conn.commit()
+            cursor.execute("SELECT * FROM refunds WHERE refund_id = ?", (refund_id,))
+            return Result.ok({
+                "status": "COMPLETED",
+                "refund": dict(cursor.fetchone()),
+                "total_refunded": new_refunded,
+                "message": f"Successfully refunded ₹{amount:,.2f}."
+            })
+
+    def get_payment(self, payment_id: str) -> Optional[Dict[str, Any]]:
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("SELECT * FROM payments WHERE payment_id = ?", (payment_id,))
+            row = cursor.fetchone()
+            return dict(row) if row else None
+
+    def get_payment_audit_trail(self, payment_id: str) -> List[Dict[str, Any]]:
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("""
+                SELECT id, payment_id, from_state, to_state, event_type, details, created_at
+                FROM payment_audit_trail WHERE payment_id = ? ORDER BY id ASC
+            """, (payment_id,))
+            return [dict(r) for r in cursor.fetchall()]
+
+    # --- Legacy Transaction History & Self Healing Logs ---
+
     def log_transaction(self, outcome: Any) -> None:
         now = time.time()
         attempted_str = ",".join(outcome.attempted_providers)
@@ -134,7 +445,7 @@ class PayWeaveDatabase:
                 attempted_str,
                 outcome.retries_count,
                 outcome.total_latency_ms,
-                "SUCCESS" if outcome.success else "FAILED",
+                "SUCCESS" if outcome.success else ("UNCERTAIN_TIMEOUT" if getattr(outcome, "is_uncertain_timeout", False) else "FAILED"),
                 outcome.status_code,
                 outcome.message,
                 now
@@ -184,6 +495,10 @@ class PayWeaveDatabase:
         with self._get_connection() as conn:
             cursor = conn.cursor()
             cursor.execute("DELETE FROM transactions")
+            cursor.execute("DELETE FROM payments")
+            cursor.execute("DELETE FROM payment_audit_trail")
+            cursor.execute("DELETE FROM processed_webhooks")
+            cursor.execute("DELETE FROM refunds")
             cursor.execute("DELETE FROM self_healing_events")
             cursor.execute("DELETE FROM config_audit_log")
             conn.commit()
