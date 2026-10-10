@@ -11,7 +11,7 @@
 [![Python Version](https://img.shields.io/badge/Python-3.13-3776AB?style=for-the-badge&logo=python)](https://www.python.org/)
 [![License](https://img.shields.io/badge/License-MIT-green.style=for-the-badge)](LICENSE)
 
-[🌐 **Explore Live Application Demo**](https://payweave-payment-framework-pxtcmxmheexmcuyul6lkmy.streamlit.app/) • [📖 **API Reference**](#-fastapi-rest-endpoints) • [🧪 **Test Suite**](#-test-suite--coverage-results) • [⚡ **React SDK**](#-react-merchant-checkout-sdk)
+[🌐 **Explore Live Application Demo**](https://payweave-payment-framework-pxtcmxmheexmcuyul6lkmy.streamlit.app/) • [📖 **API Reference**](#-17-fastapi-rest-endpoints) • [🧪 **Test Suite**](#-13-test-suite--code-coverage-results) • [⚡ **React SDK**](#-11-react-merchant-checkout-sdk)
 
 </div>
 
@@ -19,46 +19,52 @@
 
 ## 🌟 1. What is PayWeave?
 
-**PayWeave** is a declarative payment application and intelligent infrastructure framework. Instead of writing hardcoded payment routing code, PayWeave enables merchants to define end-to-end payment flows, adaptive authentication, dynamic provider scoring, fraud limits, and multi-datacenter topologies declaratively using a **Declarative YAML DSL**.
+**PayWeave** is an independent declarative payment application and intelligent infrastructure framework. Instead of writing brittle, hardcoded payment routing code, PayWeave enables merchants to define end-to-end payment flows, adaptive authentication, dynamic provider scoring, fault-tolerant circuit breakers, and multi-datacenter topologies declaratively using a **Declarative YAML DSL**.
 
 ### Independent Portfolio Disclaimer
-*PayWeave is an independent software portfolio project designed to demonstrate core engineering concepts aligned with high-availability payment orchestration (inspired by backend SDE problems described in Juspay engineering roles). It is not affiliated with, endorsed by, or built by Juspay.*
+*PayWeave is an independent software portfolio project designed to demonstrate core engineering concepts aligned with high-availability payment orchestration (inspired by backend SDE challenges described in Juspay engineering roles). It is not affiliated with, endorsed by, or built by Juspay.*
 
 ---
 
-## 🏛️ 2. Four Juspay-Aligned Engineering Pillars
+## 🏛️ 2. Six Engineering Fundamentals
 
 ```
 +-----------------------------------------------------------------------------------+
 |                               PAYWEAVE FRAMEWORK                                  |
 +-------------------+-------------------+-------------------+-----------------------+
-| 1. REACT SDK      | 2. BACKEND CORE   | 3. INTELLIGENT OPS| 4. INFRASTRUCTURE     |
-| • React Checkout  | • Functional Core | • Smart Router    | • Multi-DC Simulation |
-| • Merchant UI     | • Result/Either   | • Self-Healing    | • Edge Node Logic     |
-| • Configurable UI | • Provider Adapters| • Z-Score Anomaly | • Reliability Lab     |
+| 1. FUNCTIONAL CORE| 2. SMART ROUTING  | 3. LIFECYCLE ACID | 4. REACT SDK          |
+| • Pure ADT Logic  | • Circuit Breakers| • Idempotency Keys| • Accessible A11y UI  |
+| • Monadic Result  | • Failover Reroute| • Webhook Dedup   | • Strict States       |
+| • Haskell Cabal   | • Redis Shared    | • Audit Trails    | • Vitest + RTL        |
 +-------------------+-------------------+-------------------+-----------------------+
+| 5. DISTRIBUTED INFRASTRUCTURE         | 6. REPRODUCIBLE BENCHMARKS                |
+| • Multi-DC (Mumbai DC1 / Blr DC2)     | • In-Memory Microbenchmark (~27k ops/s)   |
+| • Docker Compose Dynamic Generator    | • Measured FastAPI HTTP Load (1,363 req/s)|
++---------------------------------------+-------------------------------------------+
 ```
 
-1. **SDK Layer**: Pure React + TypeScript `<PayWeaveCheckout />` SDK for merchant-facing checkout UI integration.
-2. **Backend Engine Layer**: Functional programming core using monadic `Result[T, E]` and formal **Haskell** specifications for deterministic, zero side-effect payment pipeline decisions.
-3. **Intelligent Payment Operations**: Multi-factor routing router, automated circuit breaker self-healing, Z-score telemetry anomaly detector, and AI payment assist.
-4. **Infrastructure & Reliability**: Multi-datacenter topology simulation (DC-1 Primary Mumbai / DC-2 Failover Bengaluru), edge worker pre-filtering, and stress lab.
+1. **Functional Programming Core**: Domain rules modeled with pure Algebraic Data Types (ADTs) and monadic `Result[T, E]` / `Either PaymentError a`. Specified formally in Haskell (GHC 9.6.6 / Cabal) and verified via differential contract tests against the Python reference runtime.
+2. **Provider Routing & Resilience**: Multi-factor routing scoring with stateful 3-state Circuit Breakers (`CLOSED`, `OPEN`, `HALF_OPEN`), bounded exponential backoff with jitter, and non-retryable error short-circuiting.
+3. **Realistic Payment Lifecycle**: ACID database transactions supporting idempotent creation, deterministic state machine transitions, SHA-256 webhook payload deduplication, and cumulative refund caps.
+4. **React + TypeScript SDK**: Accessible (`aria-invalid`, `role="alert"`), multi-state merchant checkout component with client idempotency key generation and Vitest unit test coverage.
+5. **Infrastructure & Shared State**: Redis-backed distributed provider health and circuit breaker coordination (with graceful thread-safe in-memory fallback), Multi-DC active-passive failover simulation (Mumbai DC1 / Bengaluru DC2), and DSL-driven Docker Compose generator.
+6. **Measurable Performance**: Explicit distinction between algorithmic routing microbenchmarks and actual concurrent HTTP load benchmarks against FastAPI endpoints.
 
 ---
 
-## 🏗️ 3. System Architecture Topology
+## 🏗️ 3. System Architecture & Lifecycle Topologies
 
+### System Component Architecture
 ```mermaid
 graph TD
-    DSL[Declarative YAML DSL] --> Parser[DSL Parser & Validator]
-    Parser --> Core[Functional Execution Core]
-    Core --> Plan[Payment Execution Plan]
-    Plan --> Router[Intelligent Payment Router]
+    DSL[Declarative YAML DSL] --> Parser[DSL Validator & JSON Schema]
+    Parser --> Core[Pure Functional Core: Result / Either]
+    Core --> Router[Intelligent Payment Router]
     
-    subgraph Intelligent Routing & Self-Healing
-        Router --> Score[Multi-Factor Scoring Engine]
-        Score --> Health[Provider Health Tracker]
-        Health --> Heal[Self-Healing Recovery Engine]
+    subgraph Routing & Resilience Layer
+        Router --> Score[Multi-Factor Weighted Scoring]
+        Score --> CB[Circuit Breakers: Closed / Open / Half-Open]
+        CB --> SharedState[(Shared State: Redis / Memory Fallback)]
     end
 
     Router --> PSPs[Mock PSP Adapters]
@@ -66,25 +72,52 @@ graph TD
     PSPs --> PSPB[PSP-B SpeedPay Express]
     PSPs --> PSPC[PSP-C ValuePay Direct]
 
-    PSPs --> Telemetry[Telemetry Stream & Feature Extractor]
-    Telemetry --> Anomaly[Z-Score Anomaly Detector]
-    Telemetry --> Storage[(SQLite Database Persistence)]
-
-    subgraph Infrastructure Layer
-        Edge[Edge Nodes] --> MultiDC[Multi-DC Controller: DC1 / DC2]
-        MultiDC --> PSPs
+    subgraph ACID Lifecycle & Audit Layer
+        PSPs --> DB[(SQLite ACID Ledger)]
+        DB --> PayTable[Payments Table]
+        DB --> AuditTrail[Payment Audit Trail]
+        DB --> WebhookDedup[Processed Webhooks Table]
     end
 
-    subgraph AI Operations
-        AIOps[PayWeave Assist Query Engine] --> LLM[LLM Client / Offline Fallback]
+    subgraph Infrastructure Topology
+        Edge[Edge Nodes] --> MultiDC[Multi-DC Controller: Mumbai DC1 / Bengaluru DC2]
+        MultiDC --> SharedState
     end
+```
+
+### Payment Lifecycle Finite State Machine
+```mermaid
+stateDiagram-v2
+    [*] --> CREATED: /payment/create (Idempotent)
+    CREATED --> AUTHENTICATING: Auth Challenge Initiated
+    AUTHENTICATING --> AUTHORIZED: 2FA / Frictionless Passed
+    AUTHENTICATING --> FAILED: Auth Failed / Terminal Decline
+    CREATED --> FAILED: Direct Decline
+    AUTHORIZED --> CAPTURED: Settlement Confirmed
+    AUTHORIZED --> FAILED: Capture Timeout / Void
+    CAPTURED --> PARTIALLY_REFUNDED: Refund Amount < Total
+    PARTIALLY_REFUNDED --> REFUNDED: Refund Amount == Total
+    CAPTURED --> REFUNDED: Full Refund
+    CAPTURED --> DISPUTED: Chargeback Ingested
+    FAILED --> [*]
+    REFUNDED --> [*]
+```
+
+### Circuit Breaker State Transition Matrix
+```mermaid
+stateDiagram-v2
+    [*] --> CLOSED
+    CLOSED --> OPEN: Consecutive Failures >= Threshold (3)
+    OPEN --> HALF_OPEN: Cooldown Expired (5.0s)
+    HALF_OPEN --> CLOSED: Probe Request Succeeds
+    HALF_OPEN --> OPEN: Probe Request Fails
 ```
 
 ---
 
-## 📜 4. Declarative YAML DSL
+## 📜 4. Declarative Merchant YAML DSL
 
-Merchants configure routing policies, fraud thresholds, and multi-DC targets via YAML:
+Merchants configure routing policies, fallback chains, authentication rules, and infrastructure parameters declaratively:
 
 ```yaml
 merchant:
@@ -110,106 +143,132 @@ routing:
     cost: 0.10
     capacity: 0.05
   fallback:
-    primary_provider: psp-a
+    enabled: true
+    max_retries: 2
     fallback_providers:
       - psp-b
       - psp-c
 
-risk:
-  max_score: 0.30
-  block_high_risk: true
-
 authentication:
   mode: adaptive
-  step_up_threshold: 0.20
+  step_up_threshold: 0.75
+  require_2fa_above_amount: 10000.0
+
+risk:
+  max_score: 0.80
+  block_high_risk: true
+  velocity_limit_per_min: 100
+
+anomaly:
+  enabled: true
+  threshold: 0.65
+  z_score_threshold: 2.5
 
 infrastructure:
   primary_dc: dc1
   failover_dc: dc2
-  auto_failover: true
+  edge_enabled: true
+  max_latency_ms: 350.0
+
+payment_page:
+  layout: compact
+  theme: vibrant_fintech
+  methods:
+    - upi
+    - card
+  show_saved_payment: true
+  brand_name: Demo Store
+  primary_color: "#6366F1"
 ```
 
+### Configuration Schema & Versioning
+- **Draft-07 JSON Schema**: Exported at `payweave/dsl/dsl_schema.json`.
+- **Semantic Validation**: Weights strictly checked to sum to 1.0 (or 100%), all fallback providers checked against registered provider set `{"psp-a", "psp-b", "psp-c"}`, and thresholds bounded.
+- **Audit & Rollback**: Version snapshots saved in `merchant_config_versions` with programmatic rollback via `db.rollback_merchant_config()`.
+
 ---
 
-## 📊 5. Measured Engineering Evidence (Empirical Benchmark Results)
+## 📊 5. Measured Engineering Performance Evidence
 
-All performance metrics below are generated from **actual runtime execution** of the PayWeave routing engine, self-healing pipeline, and anomaly detector on 1,000 deterministic requests.
+### 1. In-Memory Pure Routing Microbenchmark
+*Measures pure algorithmic CPU execution speed in-memory (bypassing HTTP/network overhead).*
 
-### Router Performance & Throughput Benchmark
 | Metric | Measured Value | Unit / Context |
 | :--- | :--- | :--- |
-| **Workload Evaluated** | 1,000 | requests (Seed `42`) |
-| **Routing Decisions Succeeded** | 1,000 (100.0%) | requests |
-| **Routing Decisions Failed** | 0 (0.0%) | requests |
-| **Routing Engine Throughput** | **~27,693** | **requests / sec** |
+| **Workload Evaluated** | 1,000 | requests (Deterministic Seed `42`) |
+| **Decision Success Rate** | 1,000 (100.0%) | requests |
+| **Microbenchmark Throughput** | **~27,693** | **routing decisions / sec** |
 | **Mean Decision Latency** | 0.0261 | ms |
-| **Median Decision Latency** | 0.0214 | ms |
-| **P95 Decision Latency** | **0.0387** | **ms** |
-| **P99 Decision Latency** | **0.0994** | **ms** |
-| **Primary Selected Provider** | PSP-B (100%) | Highest Success Rate / Latency SLA |
+| **Median (p50) Latency** | 0.0214 | ms |
+| **p95 Decision Latency** | **0.0387** | **ms** |
+| **p99 Decision Latency** | **0.0994** | **ms** |
 
-### Provider Failover & Automated Rerouting Benchmark
-| Stage | Active Status | Selected Provider | Rerouted Traffic | Decision Latency |
-| :--- | :--- | :--- | :--- | :--- |
-| **Stage 1: Healthy Baseline** | PSP-A Healthy | PSP-A (100 reqs) | 0 reqs | 0.020 ms |
-| **Stage 2: Degraded PSP-A** | Latency 850ms, Err 60% | PSP-B / PSP-C | **100 reqs (100% Failover)** | **0.038 ms** |
-| **Stage 3: Automated Recovery** | PSP-A Recovered | PSP-A Restored | 0 reqs | 0.020 ms |
+### 2. FastAPI Real HTTP Endpoint Load Benchmarks
+*Measured with `httpx` ASGI client exercising the complete HTTP request pipeline, validation, middleware, ACID SQLite persistence, and JSON serialization.*
 
----
-
-## 🧮 6. Functional Core Architecture (Haskell & Python)
-
-Payment business rules are inherently policy-heavy logic where uncontrolled exceptions create double-charge risk.
-
-- **Explicit Errors (`Either PaymentError a` / `Result[T, E]`)**: Domain failures (`InvalidAmount`, `RiskThresholdExceeded`, `NoHealthyProvider`) are represented explicitly as ADTs rather than throwing runtime exceptions.
-- **Formal Haskell Specification (`functional-core/`)**: Formal reference code in `PaymentTypes.hs`, `PaymentRules.hs`, `Routing.hs`, `PayWeave.hs`, and `Main.hs`.
-- **Python Reference Runtime (`payweave/runtime/functional_core.py`)**: Portable reference engine powering Streamlit Cloud deployment without requiring GHC dependencies.
-
-*See complete rationale in [`docs/DESIGN_RATIONALE.md`](docs/DESIGN_RATIONALE.md).*
+| Endpoint | Workload | Concurrency | Duration | Throughput (RPS) | p50 Latency | p95 Latency | p99 Latency | Error Rate | Notes |
+| :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
+| `POST /routing/decision` | 1,000 | 25 | 0.734s | **1,362.95 req/s** | 16.95 ms | 27.36 ms | 41.99 ms | **0.0%** | Full HTTP routing scoring |
+| `POST /payment/create` | 500 | 15 | 9.872s | **50.65 req/s** | 14.45 ms | 1,128.86 ms | 6,991.17 ms | 1.2% | ACID transactions + idempotency keys |
+| `POST /payment/simulate` | 500 | 15 | 11.502s | **43.47 req/s** | 127.15 ms | 1,516.35 ms | 5,304.86 ms | 0.2% | End-to-end routing + provider simulation |
 
 ---
 
-## 🧠 7. Intelligent Routing & 🛡️ 8. Self-Healing System
+## 🧮 6. Functional Core & Formal Verification
 
-PayWeave evaluates providers dynamically:
+Payment business rules are inherently policy-heavy logic where uncontrolled exceptions create double-charge and inconsistent state risks.
 
-$$\text{Routing Score} = (0.40 \cdot \text{SuccessRate}) + (0.30 \cdot (1 - \frac{\text{Latency}}{500})) + (0.15 \cdot \text{Health}) + (0.10 \cdot (1 - \text{Cost})) + (0.05 \cdot \text{Cap})$$
-
-### Automated Circuit Breaker
-- **Tripping Threshold**: If provider success rate drops below $60\%$ or latency exceeds $700\text{ms}$, `is_healthy` flips to `False`.
-- **Automated Rerouting**: Scores for unhealthy providers are forced to $0.0$, rerouting $100\%$ of active traffic to fallback providers.
-
----
-
-## 📈 9. Telemetry Anomaly Detector
-
-- **Z-Score Engine**: Computes rolling $Z = \frac{x - \mu}{\sigma}$ across latency, success rate, and error rate.
-- **Threshold**: $Z > 2.50\sigma$ flags anomalies into severity buckets (`LOW`, `MEDIUM`, `HIGH`, `CRITICAL`).
-- **ML Fallback**: Includes `sklearn.ensemble.IsolationForest` for multivariate anomaly detection.
+- **Explicit Types & ADTs**: Modeled in `functional-core/PaymentTypes.hs` and mirrored in `payweave/runtime/functional_core.py`.
+- **Cabal & Stack Build Spec**: `functional-core/payweave-core.cabal` and `stack.yaml` (LTS-22.28, GHC 9.6.6).
+- **QuickCheck Property Tests**: 7 test suites in `functional-core/TestMain.hs` verifying idempotence, state validity, and routing invariants.
+- **Differential Parity Contracts**: 5 JSON test fixtures in `tests/fixtures/` run through `tests/test_differential_contract.py` guaranteeing parity between Haskell and Python reference runtime.
 
 ---
 
-## 🤖 10. AI Payment Operations (PayWeave Assist)
+## 🛡️ 7. Resilience, Circuit Breakers & Distributed State
 
-Natural language query interface for merchant operations (`"Why was payment txn_102 rerouted?"`, `"Analyze current PSP-A health"`). Powered by Gemini / Groq with a **100% deterministic offline fallback engine** that functions seamlessly without API keys.
+### Circuit Breaker FSM
+- Implementation in `payweave/routing/circuit_breaker.py`.
+- Implements `CLOSED -> OPEN -> HALF_OPEN -> CLOSED`.
+- Bounded exponential backoff with jitter in `payweave/runtime/payment_logic.py`.
+- Non-retryable errors (`InvalidAmount`, `CardExpired`, `AuthenticationFailed`) terminate immediately without retries.
+
+### Distributed Shared State
+- Implementation in `payweave/routing/shared_state.py`.
+- Coordinates provider health and circuit breaker trips across multi-container workers via Redis.
+- Gracefully falls back to thread-safe in-memory storage if Redis is unreachable or unconfigured.
+
+### Multi-DC Topology
+- **Primary**: Mumbai DC1 (`ap-south-1a`, baseline 15ms internal latency).
+- **Failover**: Bengaluru DC2 (`ap-south-1b`, baseline 42ms cross-region latency).
+- Automatic capacity scaling from 1,000 to 1,800 TPS upon primary DC degradation.
+
+### Docker Compose Generator
+- Programmatic generator in `payweave/infrastructure/docker_generator.py` converting merchant DSL into production-ready `docker-compose.yml`.
 
 ---
 
-## ⚛️ 11. React Merchant Checkout SDK
+## ⚛️ 8. React + TypeScript Checkout SDK
 
 Located in `sdk/react`:
 
-```tsx
-import { PayWeaveCheckout } from '@payweave/react-sdk';
+- **Component**: `<PayWeaveCheckout />` in `sdk/react/src/components/PayWeaveCheckout.tsx`.
+- **Accessibility (A11y)**: Accessible validation using `aria-invalid`, `aria-describedby`, and live region `role="alert"`.
+- **Idempotency**: Client-generated UUID idempotency keys included with payment submissions.
+- **Deterministic States**: Explicit UI states (`idle`, `authenticating`, `processing`, `success`, `failure`, `retryable_error`).
+- **Vitest & React Testing Library**: Tested in `sdk/react/src/components/PayWeaveCheckout.test.tsx` (7 unit tests passing).
 
-export function CheckoutPage() {
+```tsx
+import { PayWeaveCheckout } from './components/PayWeaveCheckout';
+
+export function CheckoutApp() {
   return (
     <PayWeaveCheckout
       amount={2500.0}
       currency="INR"
-      merchantId="merch_demo"
-      theme="dark_glass"
-      onSuccess={(tx) => console.log("Success:", tx)}
+      config={{ brandName: "Demo Store", primaryColor: "#6366F1" }}
+      onSuccess={(tx) => console.log("Payment Confirmed:", tx)}
+      onFailure={(err) => console.error("Payment Failed:", err)}
     />
   );
 }
@@ -217,41 +276,42 @@ export function CheckoutPage() {
 
 ---
 
-## 🌐 12. Multi-DC Infrastructure Simulation
+## 🧪 9. Test Suite & Code Coverage Results
 
-Simulates multi-region datacenter operational states:
-- **DC-1 Primary (Mumbai)**: $1,000\text{ TPS}$ capacity.
-- **DC-2 Failover (Bengaluru)**: Auto-scales capacity to $1,800\text{ TPS}$ upon DC-1 failure injection.
-
----
-
-## 🧪 13. Test Suite & Coverage Results
-
-Run the complete test suite:
+### Python Backend Suite (`pytest`)
+Run the test suite:
 ```bash
 pytest --cov=payweave --cov=benchmarks --cov-report=term-missing
 ```
 
-### Actual Test Results
-- **Passed Tests**: **51 / 51 tests passed (100% pass rate)**
-- **Test Coverage**: **74% total package coverage**
+**Measured Test Output:**
+- **92 passed in 8.90s (100% pass rate)**
+- **76% total package code coverage**
+  - `functional_core.py`: **93%**
+  - `circuit_breaker.py`: **98%**
+  - `scoring.py`: **98%**
+  - `docker_generator.py`: **100%**
+  - `database.py`: **86%**
+
+### React SDK Suite (`Vitest`)
+Run in `sdk/react`:
+```bash
+npm test
+```
+**Measured Output:**
+- **7 passed in 8.24s (100% pass rate)**
 
 ---
 
-## 📑 14. Architecture Documents & Study References
-- 📖 [**Design Rationale & Trade-offs** (`docs/DESIGN_RATIONALE.md`)](docs/DESIGN_RATIONALE.md): Explains routing weights, scoring formulas, Z-score mathematics, and trade-offs.
-- 🔬 [**Juspay Hyperswitch Study** (`docs/HYPERSWITCH_STUDY.md`)](docs/HYPERSWITCH_STUDY.md): Comparative study of Hyperswitch (Rust core) vs PayWeave (Declarative framework).
-- 🧮 [**Haskell Core Specification** (`functional-core/README.md`)](functional-core/README.md): Haskell compilation and pure monadic pipeline guide.
+## ⚠️ 10. System Boundaries & Production Considerations
+
+1. **Simulated Payment Gateways**: The framework uses mock adapters (`psp-a`, `psp-b`, `psp-c`) that model realistic success rates, network timeouts, and latency distributions. It does not transfer live fiat money.
+2. **Database Engine**: Uses SQLite in WAL mode for local simplicity and zero-dependency reproducibility. Production payment systems require PostgreSQL with row-level locks (`SELECT FOR UPDATE`) or distributed multi-region databases (CockroachDB / Spanner).
+3. **Distributed Coordination**: Shared state uses Redis with graceful in-memory fallback. Production multi-region deployments require Redis Sentinel or Redis Cluster with read replicas.
 
 ---
 
-## ⚠️ 15. System Boundaries & Portfolio Limitations
-1. **Simulation Scope**: Uses mock PSP adapters (`psp-a`, `psp-b`, `psp-c`) with simulated latencies; does not move real fiat money or interface with live card networks.
-2. **In-Memory State**: Telemetry and provider health are tracked in rolling in-memory windows. Production deployment would use Redis Cluster and Kafka.
-
----
-
-## 💻 16. Local Setup & Quick Start
+## 💻 11. Local Setup & Quick Start
 
 ### 1. Clone & Install Dependencies
 ```bash
@@ -260,18 +320,30 @@ cd payweave-payment-framework
 python -m pip install -r requirements.txt
 ```
 
-### 2. Run Benchmarks
+### 2. Run Test Suites
+```bash
+# Python backend tests
+pytest -v
+
+# React SDK tests
+cd sdk/react
+npm install --legacy-peer-deps
+npm test
+cd ../..
+```
+
+### 3. Run Performance Benchmarks
 ```bash
 python -m benchmarks.run_all_benchmarks
 ```
 
-### 3. Launch Streamlit Web UI
+### 4. Launch Streamlit Web UI
 ```bash
 streamlit run app.py
 ```
 Open browser at `http://localhost:8501`.
 
-### 4. Launch FastAPI REST Server
+### 5. Launch FastAPI REST Server
 ```bash
 uvicorn api:app --reload --port 8000
 ```
@@ -279,19 +351,21 @@ API docs available at `http://localhost:8000/docs`.
 
 ---
 
-## 🔌 17. FastAPI REST Endpoints
+## 🔌 12. FastAPI REST Endpoints
 
 | Method | Endpoint | Description |
 | :--- | :--- | :--- |
 | `GET` | `/health` | System health check and engine status |
 | `POST` | `/validate-config` | Parse and validate merchant YAML DSL |
-| `POST` | `/routing/decision` | Get real-time intelligent routing decision |
+| `POST` | `/routing/decision` | Real-time multi-factor intelligent routing decision |
+| `POST` | `/payment/create` | ACID payment order creation with idempotency key |
 | `POST` | `/payment/simulate` | Execute end-to-end simulated payment transaction |
+| `POST` | `/payment/webhook` | Idempotent webhook event ingestion with SHA-256 deduplication |
+| `POST` | `/payment/refund` | Process atomic refund with cumulative amount validation |
+| `GET` | `/payment/{payment_id}` | Retrieve payment lifecycle record and immutable audit trail |
 | `POST` | `/anomaly/detect` | Run statistical Z-score anomaly detection |
 | `POST` | `/infrastructure/simulate` | Trigger multi-DC failure injection and failover |
 | `GET` | `/metrics` | Retrieve live provider health metrics and transaction history |
-| `GET` | `/benchmarks` | Get stored machine-readable benchmark JSON outputs |
-| `GET` | `/engineering-evidence` | Retrieve summary evidence report |
 
 ---
 
