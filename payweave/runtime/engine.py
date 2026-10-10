@@ -36,7 +36,7 @@ class PayWeaveEngine:
         
         self.health_tracker = ProviderHealthTracker(self.providers)
         self.self_healing = SelfHealingEngine(self.health_tracker)
-        self.processor = PaymentProcessor(self.providers)
+        self.processor = PaymentProcessor(self.providers, health_tracker=self.health_tracker)
 
     def reload_config(self, config: MerchantConfig) -> None:
         """Reloads active merchant DSL configuration."""
