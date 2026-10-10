@@ -1,17 +1,19 @@
-name: PayWeave Framework CI
+name: PayWeave CI Suite
 
 on:
   push:
-    branches: [ main, master ]
+    branches: [ main, master, "upgrade/**" ]
   pull_request:
     branches: [ main, master ]
 
 jobs:
-  test-and-build:
+  python-test-and-coverage:
+    name: Python Test Suite & Parity Contracts
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout Code
+        uses: actions/checkout@v4
 
       - name: Set up Python 3.11
         uses: actions/setup-python@v5
@@ -25,21 +27,80 @@ jobs:
           pip install -r requirements.txt
           pip install pytest-cov
 
-      - name: Run Pytest Test Suite & Coverage
+      - name: Run Pytest Test Suite & Code Coverage
         run: |
-          pytest --cov=payweave --cov=benchmarks -v
+          pytest --cov=payweave --cov=benchmarks --cov-report=term-missing --cov-report=xml -v
 
-      - name: Run Benchmark Suite Smoke Test
+      - name: Run Differential Parity Contract Tests
+        run: |
+          pytest tests/test_differential_contract.py -v
+
+      - name: Run Full Benchmark Suite Smoke Test
         run: |
           python -m benchmarks.run_all_benchmarks
 
-      - name: Set up Node.js for React SDK
+  haskell-functional-core:
+    name: Haskell Formal Specification & Property Tests
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up GHC 9.6.6 & Cabal
+        uses: haskell-actions/setup@v2
+        with:
+          ghc-version: "9.6.6"
+          cabal-version: "3.10.3.0"
+
+      - name: Cache Cabal Dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cabal/packages
+            ~/.cabal/store
+            dist-newstyle
+          key: ${{ runner.os }}-cabal-${{ hashFiles('functional-core/payweave-core.cabal') }}
+          restore-keys: |
+            ${{ runner.os }}-cabal-
+
+      - name: Update Cabal Package Index
+        run: cabal update
+
+      - name: Build Haskell Functional Core
+        run: |
+          cd functional-core
+          cabal build all
+
+      - name: Run QuickCheck Property Tests
+        run: |
+          cd functional-core
+          cabal test payweave-core-test --test-show-details=direct
+
+  react-checkout-sdk:
+    name: React + TypeScript Checkout SDK
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        working-directory: sdk/react
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js 20
         uses: actions/setup-node@v4
         with:
           node-version: "20"
+          cache: "npm"
+          cache-dependency-path: sdk/react/package-lock.json
 
-      - name: Build React Checkout SDK
-        run: |
-          cd sdk/react
-          npm ci || npm install
-          npm run build
+      - name: Install SDK Dependencies
+        run: npm install --legacy-peer-deps
+
+      - name: Run Vitest Unit Tests
+        run: npm test
+
+      - name: Build TypeScript & Vite Bundle
+        run: npm run build
