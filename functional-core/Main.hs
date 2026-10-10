@@ -1,6 +1,4 @@
--- PayWeave Haskell Functional Core: Standalone Test Runner & Verification Suite
--- Can be compiled with `ghc Main.hs -o run_core` or executed with `runhaskell Main.hs`
-
+-- | PayWeave Haskell Functional Core: Standalone Executable Demonstration
 module Main where
 
 import PaymentTypes
@@ -11,7 +9,7 @@ import PayWeave
 main :: IO ()
 main = do
   putStrLn "=================================================="
-  putStrLn "PayWeave Haskell Functional Core Suite"
+  putStrLn "PayWeave Haskell Functional Core Engine"
   putStrLn "=================================================="
   
   let merchantCfg = MerchantConfig
@@ -24,9 +22,9 @@ main = do
         }
 
   let providers =
-        [ ProviderHealth "psp-a" 0.985 120.0 0.70 90.0 True
-        , ProviderHealth "psp-b" 0.990  85.0 0.85 95.0 True
-        , ProviderHealth "psp-c" 0.965 210.0 0.30 70.0 True
+        [ ProviderHealth "psp-a" 0.985 120.0 0.70 90.0 True Closed
+        , ProviderHealth "psp-b" 0.990  85.0 0.85 95.0 True Closed
+        , ProviderHealth "psp-c" 0.965 210.0 0.30 70.0 False Closed  -- Unhealthy
         ]
 
   let validReq = PaymentRequest
@@ -50,17 +48,27 @@ main = do
       putStrLn ("  FAILURE: Unexpected error - " ++ show err)
 
   let invalidAmountReq = validReq { amount = -50.0 }
-  putStrLn "\n[Test 2] Processing Invalid Amount Request:"
+  putStrLn "\n[Test 2] Processing Invalid Negative Amount:"
   case buildPlan merchantCfg providers invalidAmountReq of
-    Right _ -> putStrLn "  FAILURE: Expected error for negative amount, got Right."
+    Right _  -> putStrLn "  FAILURE: Expected error for negative amount, got Right."
     Left err -> putStrLn ("  RESULT: Caught Expected Error -> " ++ show err)
 
   let highRiskReq = validReq { riskScore = 0.95 }
   putStrLn "\n[Test 3] Processing High Risk Request:"
   case buildPlan merchantCfg providers highRiskReq of
-    Right _ -> putStrLn "  FAILURE: Expected risk error, got Right."
+    Right _  -> putStrLn "  FAILURE: Expected risk error, got Right."
     Left err -> putStrLn ("  RESULT: Caught Expected Error -> " ++ show err)
 
+  putStrLn "\n[Test 4] State Transition: Pending -> Succeeded:"
+  case transitionPaymentState Pending Succeeded of
+    Right s  -> putStrLn ("  RESULT: Transitioned to " ++ show s)
+    Left err -> putStrLn ("  FAILURE: " ++ show err)
+
+  putStrLn "\n[Test 5] Invalid State Transition: Created -> Succeeded:"
+  case transitionPaymentState Created Succeeded of
+    Right s  -> putStrLn ("  FAILURE: Illegal transition accepted -> " ++ show s)
+    Left err -> putStrLn ("  RESULT: Caught Expected Transition Error -> " ++ show err)
+
   putStrLn "\n=================================================="
-  putStrLn "Haskell Functional Core Validation Complete."
+  putStrLn "Haskell Functional Core Demonstration Complete."
   putStrLn "=================================================="

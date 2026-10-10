@@ -1,0 +1,47 @@
+cabal-version:      3.0
+name:               payweave-core
+version:            1.0.0.0
+synopsis:           Declarative Payment Application & Intelligent Infrastructure Framework Functional Core
+description:        Pure functional reference specification and decision engine for payment routing, state machines, and resilience.
+license:            MIT
+author:             PayWeave Contributors
+maintainer:         dev@payweave.local
+category:           Finance, Concurrency
+build-type:         Simple
+tested-with:        GHC == 9.6.6
+
+library
+    exposed-modules:  PaymentTypes
+                    , PaymentRules
+                    , Routing
+                    , PayWeave
+    hs-source-dirs:   .
+    default-language: Haskell2010
+    ghc-options:      -Wall -Wcompat -Wincomplete-record-updates -Wincomplete-uni-patterns -Wredundant-constraints
+    build-depends:    base >= 4.14 && < 5.0
+
+executable payweave-core-exe
+    main-is:          Main.hs
+    other-modules:    PaymentTypes
+                    , PaymentRules
+                    , Routing
+                    , PayWeave
+    hs-source-dirs:   .
+    default-language: Haskell2010
+    ghc-options:      -Wall -threaded -rtsopts -with-rtsopts=-N
+    build-depends:    base >= 4.14 && < 5.0
+                    , payweave-core
+
+test-suite payweave-core-test
+    type:             exitcode-stdio-1.0
+    main-is:          TestMain.hs
+    other-modules:    PaymentTypes
+                    , PaymentRules
+                    , Routing
+                    , PayWeave
+    hs-source-dirs:   .
+    default-language: Haskell2010
+    ghc-options:      -Wall -threaded -rtsopts -with-rtsopts=-N
+    build-depends:    base >= 4.14 && < 5.0
+                    , QuickCheck >= 2.14
+                    , payweave-core

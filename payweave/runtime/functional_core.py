@@ -65,6 +65,20 @@ class PaymentMethodEnum(str, Enum):
     NETBANKING = "netbanking"
 
 
+class PaymentState(str, Enum):
+    CREATED = "CREATED"
+    PENDING = "PENDING"
+    SUCCEEDED = "SUCCEEDED"
+    FAILED = "FAILED"
+    UNCERTAIN_TIMEOUT = "UNCERTAIN_TIMEOUT"
+
+
+class CircuitBreakerState(str, Enum):
+    CLOSED = "CLOSED"
+    OPEN = "OPEN"
+    HALF_OPEN = "HALF_OPEN"
+
+
 @dataclass(frozen=True)
 class PaymentRequest:
     request_id: str
@@ -98,6 +112,7 @@ class ProviderHealth:
     is_healthy: bool
     cost_score: float  # 0.0 - 1.0 (lower is cheaper)
     capacity_pct: float  # 0 - 100
+    circuit_breaker: str = "CLOSED"  # "CLOSED", "OPEN", "HALF_OPEN"
 
 
 @dataclass(frozen=True)
@@ -163,6 +178,9 @@ def validate_request(req: PaymentRequest, ctx: PaymentContext) -> Result[Validat
     if req.amount <= 0:
         return Result.fail("Payment amount must be greater than zero.")
     
+    if not req.customer_id or not req.customer_id.strip():
+        return Result.fail("Customer ID cannot be empty.")
+
     supported_methods = ctx.merchant_config.payment.methods
     if req.payment_method not in supported_methods:
         return Result.fail(
@@ -228,10 +246,15 @@ def determine_authentication(req: PaymentRequest, risk_dec: RiskDecision, ctx: P
     return AuthenticationDecision(requires_2fa=False, mode=mode, reason="Adaptive risk assessment passed without 2FA.")
 
 
-def evaluate_routing(req: PaymentRequest, ctx: PaymentContext) -> RoutingDecision:
-    """Pure function: Selects optimal PSP based on weights, strategy, and provider health."""
+def evaluate_routing(req: PaymentRequest, ctx: PaymentContext) -> Result[RoutingDecision, str]:
+    """
+    Pure function: Selects optimal PSP based on weights, strategy, and provider health.
+    Guarantees that:
+    1. Unhealthy or open-circuit providers are strictly excluded.
+    2. If no candidate is healthy, returns Result.fail('No healthy provider available.').
+    3. Identical inputs yield deterministic decisions with consistent tie-breaking.
+    """
     health_map = ctx.provider_health_map
-    strategy = ctx.merchant_config.routing.strategy
     weights = ctx.merchant_config.routing.weights
     fallbacks = ctx.merchant_config.routing.fallback.fallback_providers
 
@@ -239,7 +262,7 @@ def evaluate_routing(req: PaymentRequest, ctx: PaymentContext) -> RoutingDecisio
     max_lat = max([p.latency_ms for p in health_map.values()] or [500.0])
 
     for pid, p in health_map.items():
-        if not p.is_healthy:
+        if not p.is_healthy or getattr(p, "circuit_breaker", "CLOSED") == "OPEN":
             continue
 
         succ_component = p.success_rate * weights.get("success_rate", 0.4)
@@ -251,32 +274,80 @@ def evaluate_routing(req: PaymentRequest, ctx: PaymentContext) -> RoutingDecisio
         total_score = succ_component + lat_component + health_component + cost_component + cap_component
         scored_providers.append((pid, total_score, p))
 
-    scored_providers.sort(key=lambda x: x[1], reverse=True)
+    # Deterministic tie-breaking: higher score first; if equal, alphabetical provider_id
+    scored_providers.sort(key=lambda x: (-x[1], x[0]))
 
     if not scored_providers:
-        # Fallback if no healthy provider found
-        best_pid = fallbacks[0] if fallbacks else "psp-a"
-        return RoutingDecision(
-            selected_provider=best_pid,
-            fallback_chain=fallbacks,
-            score=0.0,
-            rationale="All primary providers degraded. Routing directly to emergency fallback."
-        )
+        return Result.fail("No healthy provider available.")
 
     best_pid, best_score, best_p = scored_providers[0]
-    fallback_chain = [p[0] for p in scored_providers[1:]] + [f for f in fallbacks if f != best_pid]
+    fallback_chain = [p[0] for p in scored_providers[1:]] + [
+        f for f in fallbacks
+        if f != best_pid and f in health_map and health_map[f].is_healthy and getattr(health_map[f], "circuit_breaker", "CLOSED") != "OPEN"
+    ]
 
     rationale = (
         f"Selected {best_pid.upper()} (Score: {best_score:.3f}). "
         f"Success: {best_p.success_rate * 100:.1f}%, Latency: {best_p.latency_ms:.0f}ms, Cost factor: {best_p.cost_score:.2f}."
     )
 
-    return RoutingDecision(
+    return Result.ok(RoutingDecision(
         selected_provider=best_pid,
         fallback_chain=fallback_chain,
         score=best_score,
         rationale=rationale
-    )
+    ))
+
+
+def transition_payment_state(from_state: PaymentState, to_state: PaymentState) -> Result[PaymentState, str]:
+    """
+    Pure state machine transition function.
+    Valid transitions:
+      CREATED -> PENDING
+      PENDING -> SUCCEEDED | FAILED | UNCERTAIN_TIMEOUT
+      UNCERTAIN_TIMEOUT -> SUCCEEDED | FAILED
+    All other transitions return an explicit error.
+    """
+    valid_transitions = {
+        PaymentState.CREATED: {PaymentState.PENDING},
+        PaymentState.PENDING: {PaymentState.SUCCEEDED, PaymentState.FAILED, PaymentState.UNCERTAIN_TIMEOUT},
+        PaymentState.UNCERTAIN_TIMEOUT: {PaymentState.SUCCEEDED, PaymentState.FAILED},
+    }
+    allowed = valid_transitions.get(from_state, set())
+    if to_state in allowed:
+        return Result.ok(to_state)
+    return Result.fail(f"Invalid payment state transition from {from_state.value} to {to_state.value}.")
+
+
+def is_retry_eligible(error_reason: str) -> bool:
+    """
+    Pure function: Determines retry eligibility.
+    Technical timeouts, network connection drops, and circuit half-open probes are retryable.
+    Validation errors, fraudulent risk blocks, and business rule failures are NOT retryable.
+    """
+    if not error_reason:
+        return False
+    lower = error_reason.lower()
+    non_retryable_markers = [
+        "amount must be greater than zero",
+        "currency",
+        "customer id cannot be empty",
+        "risk score",
+        "not supported by merchant dsl",
+        "invalid payment state transition",
+        "fraud",
+        "duplicate",
+        "idempotency"
+    ]
+    for marker in non_retryable_markers:
+        if marker in lower:
+            return False
+    
+    retryable_markers = ["timeout", "circuit", "connection", "503", "504", "reset", "temporary", "latency spike", "timed out"]
+    for marker in retryable_markers:
+        if marker in lower:
+            return True
+    return False
 
 
 def build_execution_plan(req: PaymentRequest, ctx: PaymentContext) -> Result[PaymentExecutionPlan, str]:
@@ -295,7 +366,10 @@ def build_execution_plan(req: PaymentRequest, ctx: PaymentContext) -> Result[Pay
     risk_dec = risk_res.unwrap()
 
     auth_dec = determine_authentication(req, risk_dec, ctx)
-    routing_dec = evaluate_routing(req, ctx)
+    routing_res = evaluate_routing(req, ctx)
+    if routing_res.is_error:
+        return Result.fail(routing_res.error())
+    routing_dec = routing_res.unwrap()
 
     p_health = ctx.provider_health_map.get(routing_dec.selected_provider)
     est_latency = p_health.latency_ms if p_health else 150.0

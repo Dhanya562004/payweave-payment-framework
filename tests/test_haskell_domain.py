@@ -62,3 +62,97 @@ def test_build_execution_plan_pipeline_success():
     plan = plan_res.unwrap()
     assert plan.routing.selected_provider in ["psp-a", "psp-b", "psp-c"]
     assert plan.ready_for_execution is True
+
+
+def test_validate_request_empty_customer_id():
+    ctx = make_context()
+    req = PaymentRequest(
+        request_id="pay_empty_cust",
+        amount=500.0,
+        currency="INR",
+        payment_method="upi",
+        customer_id=""
+    )
+    res = validate_request(req, ctx)
+    assert res.is_error
+    assert "Customer ID cannot be empty" in res.error()
+
+
+def test_routing_no_healthy_provider_fails():
+    ctx = make_context()
+    unhealthy_map = {
+        "psp-a": ProviderHealth("psp-a", 0.0, 500.0, 1.0, False, 0.70, 0.0),
+        "psp-b": ProviderHealth("psp-b", 0.0, 600.0, 1.0, False, 0.85, 0.0),
+        "psp-c": ProviderHealth("psp-c", 0.0, 700.0, 1.0, False, 0.30, 0.0)
+    }
+    unhealthy_ctx = PaymentContext(merchant_config=ctx.merchant_config, provider_health_map=unhealthy_map)
+    req = PaymentRequest.create(amount=100.0, currency="INR", payment_method="upi")
+    plan_res = build_execution_plan(req, unhealthy_ctx)
+    assert plan_res.is_error
+    assert "No healthy provider available" in plan_res.error()
+
+
+def test_routing_open_circuit_breaker_excluded():
+    ctx = make_context()
+    cb_map = {
+        "psp-a": ProviderHealth("psp-a", 0.99, 100.0, 0.01, True, 0.50, 90.0, circuit_breaker="OPEN"),
+        "psp-b": ProviderHealth("psp-b", 0.98, 120.0, 0.02, True, 0.50, 90.0, circuit_breaker="CLOSED"),
+    }
+    cb_ctx = PaymentContext(merchant_config=ctx.merchant_config, provider_health_map=cb_map)
+    req = PaymentRequest.create(amount=100.0, currency="INR", payment_method="upi")
+    plan_res = build_execution_plan(req, cb_ctx)
+    assert plan_res.is_ok
+    # Must select psp-b because psp-a has circuit breaker OPEN
+    assert plan_res.unwrap().routing.selected_provider == "psp-b"
+
+
+def test_routing_deterministic_tie_breaking():
+    ctx = make_context()
+    # Exactly identical metrics
+    tie_map = {
+        "psp-z": ProviderHealth("psp-z", 0.99, 100.0, 0.01, True, 0.50, 90.0),
+        "psp-a": ProviderHealth("psp-a", 0.99, 100.0, 0.01, True, 0.50, 90.0),
+    }
+    tie_ctx = PaymentContext(merchant_config=ctx.merchant_config, provider_health_map=tie_map)
+    req = PaymentRequest.create(amount=100.0, currency="INR", payment_method="upi")
+    plan_res = build_execution_plan(req, tie_ctx)
+    assert plan_res.is_ok
+    # Deterministic tie-breaking picks psp-a alphabetically
+    assert plan_res.unwrap().routing.selected_provider == "psp-a"
+
+
+def test_payment_state_machine_transitions():
+    from payweave.runtime.functional_core import PaymentState, transition_payment_state
+    
+    # Valid transitions
+    assert transition_payment_state(PaymentState.CREATED, PaymentState.PENDING).is_ok
+    assert transition_payment_state(PaymentState.PENDING, PaymentState.SUCCEEDED).is_ok
+    assert transition_payment_state(PaymentState.PENDING, PaymentState.FAILED).is_ok
+    assert transition_payment_state(PaymentState.PENDING, PaymentState.UNCERTAIN_TIMEOUT).is_ok
+    assert transition_payment_state(PaymentState.UNCERTAIN_TIMEOUT, PaymentState.SUCCEEDED).is_ok
+    assert transition_payment_state(PaymentState.UNCERTAIN_TIMEOUT, PaymentState.FAILED).is_ok
+
+    # Invalid transitions
+    inv1 = transition_payment_state(PaymentState.CREATED, PaymentState.SUCCEEDED)
+    assert inv1.is_error
+    assert "Invalid payment state transition" in inv1.error()
+
+    inv2 = transition_payment_state(PaymentState.SUCCEEDED, PaymentState.PENDING)
+    assert inv2.is_error
+    assert "Invalid payment state transition" in inv2.error()
+
+
+def test_retry_eligibility_classification():
+    from payweave.runtime.functional_core import is_retry_eligible
+
+    # Retryable errors
+    assert is_retry_eligible("Gateway timeout 504") is True
+    assert is_retry_eligible("Connection reset by peer") is True
+    assert is_retry_eligible("Circuit breaker tripped to HALF_OPEN probe failed") is True
+
+    # Non-retryable errors
+    assert is_retry_eligible("Payment amount must be greater than zero.") is False
+    assert is_retry_eligible("Transaction risk score exceeds max threshold.") is False
+    assert is_retry_eligible("Currency 'JPY' is not accepted.") is False
+    assert is_retry_eligible("Customer ID cannot be empty.") is False
+
