@@ -15,9 +15,9 @@ computeProviderScore p
       let succScore = 0.40 * successRate p
           latScore  = 0.30 * max 0.0 (1.0 - (latencyMs p / 500.0))
           hlthScore = 0.15 * (if isHealthy p && circuitBreaker p /= Open then 1.0 else 0.0)
-          costScore = 0.10 * max 0.0 (1.0 - costScore p)
+          cstScore  = 0.10 * max 0.0 (1.0 - costScore p)
           capScore  = 0.05 * max 0.0 (min 1.0 (capacityPct p / 100.0))
-      in succScore + latScore + hlthScore + costScore + capScore
+      in succScore + latScore + hlthScore + cstScore + capScore
 
 -- | Deterministic comparator: Higher score wins. On identical score, alphabetical providerId breaks tie.
 compareProviders :: (Provider, Double, ProviderHealth) -> (Provider, Double, ProviderHealth) -> Ordering
