@@ -30,3 +30,27 @@ def test_run_anomaly_benchmark_execution():
     assert res["records_per_batch"] == 20
     assert res["total_observations_evaluated"] == 100
     assert "mean_batch_latency_ms" in res["execution_time_stats_ms"]
+
+
+@pytest.mark.anyio
+async def test_run_http_benchmark_execution():
+    from benchmarks.http_benchmarks import run_scenario
+    res = await run_scenario(
+        name="Test Routing Endpoint",
+        method="POST",
+        endpoint="/routing/decision",
+        payload_factory=lambda: {
+            "amount": 1000.0,
+            "currency": "INR",
+            "payment_method": "upi",
+            "customer_id": "cust_test_bench",
+            "risk_score": 0.05
+        },
+        total_requests=20,
+        concurrency=5
+    )
+    assert res["total_requests"] == 20
+    assert res["successes"] == 20
+    assert res["throughput_rps"] > 0.0
+    assert "p50" in res["latency_ms"]
+
