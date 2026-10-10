@@ -1,0 +1,375 @@
+{
+  "$defs": {
+    "AnomalyConfig": {
+      "properties": {
+        "enabled": {
+          "default": true,
+          "description": "Enable live anomaly monitoring",
+          "title": "Enabled",
+          "type": "boolean"
+        },
+        "threshold": {
+          "default": 0.65,
+          "description": "Anomaly alert score threshold",
+          "maximum": 1.0,
+          "minimum": 0.0,
+          "title": "Threshold",
+          "type": "number"
+        },
+        "z_score_threshold": {
+          "default": 2.5,
+          "description": "Statistical Z-score cut-off",
+          "title": "Z Score Threshold",
+          "type": "number"
+        }
+      },
+      "title": "AnomalyConfig",
+      "type": "object"
+    },
+    "AuthMode": {
+      "enum": [
+        "frictionless",
+        "adaptive",
+        "always_2fa"
+      ],
+      "title": "AuthMode",
+      "type": "string"
+    },
+    "AuthenticationConfig": {
+      "properties": {
+        "mode": {
+          "$ref": "#/$defs/AuthMode",
+          "default": "adaptive",
+          "description": "Auth mode"
+        },
+        "step_up_threshold": {
+          "default": 0.75,
+          "description": "Risk threshold to trigger 2FA",
+          "maximum": 1.0,
+          "minimum": 0.0,
+          "title": "Step Up Threshold",
+          "type": "number"
+        },
+        "require_2fa_above_amount": {
+          "default": 50000.0,
+          "description": "Amount above which 2FA is forced",
+          "title": "Require 2Fa Above Amount",
+          "type": "number"
+        }
+      },
+      "title": "AuthenticationConfig",
+      "type": "object"
+    },
+    "FallbackConfig": {
+      "properties": {
+        "enabled": {
+          "default": true,
+          "description": "Enable provider fallback",
+          "title": "Enabled",
+          "type": "boolean"
+        },
+        "max_retries": {
+          "default": 2,
+          "description": "Max retries before failing",
+          "maximum": 5,
+          "minimum": 0,
+          "title": "Max Retries",
+          "type": "integer"
+        },
+        "fallback_providers": {
+          "description": "Ordered fallback PSPs",
+          "items": {
+            "type": "string"
+          },
+          "title": "Fallback Providers",
+          "type": "array"
+        }
+      },
+      "title": "FallbackConfig",
+      "type": "object"
+    },
+    "FlowNode": {
+      "properties": {
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "label": {
+          "title": "Label",
+          "type": "string"
+        },
+        "type": {
+          "title": "Type",
+          "type": "string"
+        },
+        "config": {
+          "additionalProperties": true,
+          "title": "Config",
+          "type": "object"
+        }
+      },
+      "required": [
+        "id",
+        "label",
+        "type"
+      ],
+      "title": "FlowNode",
+      "type": "object"
+    },
+    "InfrastructureConfig": {
+      "properties": {
+        "primary_dc": {
+          "default": "dc1",
+          "description": "Primary data center code",
+          "title": "Primary Dc",
+          "type": "string"
+        },
+        "failover_dc": {
+          "default": "dc2",
+          "description": "Failover data center code",
+          "title": "Failover Dc",
+          "type": "string"
+        },
+        "edge_enabled": {
+          "default": true,
+          "description": "Enable edge node evaluation",
+          "title": "Edge Enabled",
+          "type": "boolean"
+        },
+        "max_latency_ms": {
+          "default": 400.0,
+          "description": "SLA max latency limit in ms",
+          "title": "Max Latency Ms",
+          "type": "number"
+        }
+      },
+      "title": "InfrastructureConfig",
+      "type": "object"
+    },
+    "MerchantInfo": {
+      "properties": {
+        "id": {
+          "default": "merchant_demo",
+          "description": "Unique merchant ID",
+          "title": "Id",
+          "type": "string"
+        },
+        "name": {
+          "default": "Demo Merchant",
+          "description": "Display name of merchant",
+          "title": "Name",
+          "type": "string"
+        },
+        "environment": {
+          "default": "simulation",
+          "description": "Environment stage",
+          "title": "Environment",
+          "type": "string"
+        }
+      },
+      "title": "MerchantInfo",
+      "type": "object"
+    },
+    "PaymentConfig": {
+      "properties": {
+        "methods": {
+          "description": "Supported payment methods",
+          "items": {
+            "type": "string"
+          },
+          "title": "Methods",
+          "type": "array"
+        },
+        "currencies": {
+          "description": "Supported currencies",
+          "items": {
+            "type": "string"
+          },
+          "title": "Currencies",
+          "type": "array"
+        },
+        "default_method": {
+          "default": "upi",
+          "description": "Default selected method",
+          "title": "Default Method",
+          "type": "string"
+        }
+      },
+      "title": "PaymentConfig",
+      "type": "object"
+    },
+    "RiskConfig": {
+      "properties": {
+        "max_score": {
+          "default": 0.8,
+          "description": "Max allowed risk score",
+          "maximum": 1.0,
+          "minimum": 0.0,
+          "title": "Max Score",
+          "type": "number"
+        },
+        "block_high_risk": {
+          "default": true,
+          "description": "Automatically block high risk requests",
+          "title": "Block High Risk",
+          "type": "boolean"
+        },
+        "velocity_limit_per_min": {
+          "default": 100,
+          "description": "Velocity cap",
+          "minimum": 1,
+          "title": "Velocity Limit Per Min",
+          "type": "integer"
+        }
+      },
+      "title": "RiskConfig",
+      "type": "object"
+    },
+    "RoutingConfig": {
+      "properties": {
+        "strategy": {
+          "$ref": "#/$defs/RoutingStrategy",
+          "default": "intelligent",
+          "description": "Routing algorithm"
+        },
+        "prefer": {
+          "description": "Priority factors",
+          "items": {
+            "type": "string"
+          },
+          "title": "Prefer",
+          "type": "array"
+        },
+        "weights": {
+          "additionalProperties": {
+            "type": "number"
+          },
+          "description": "Routing weights adding up to 1.0",
+          "title": "Weights",
+          "type": "object"
+        },
+        "fallback": {
+          "$ref": "#/$defs/FallbackConfig"
+        }
+      },
+      "title": "RoutingConfig",
+      "type": "object"
+    },
+    "RoutingStrategy": {
+      "enum": [
+        "highest_success_rate",
+        "lowest_latency",
+        "lowest_cost",
+        "balanced",
+        "intelligent"
+      ],
+      "title": "RoutingStrategy",
+      "type": "string"
+    },
+    "UIConfig": {
+      "properties": {
+        "layout": {
+          "$ref": "#/$defs/UILayout",
+          "default": "compact"
+        },
+        "theme": {
+          "$ref": "#/$defs/UITheme",
+          "default": "vibrant_fintech"
+        },
+        "methods": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Methods",
+          "type": "array"
+        },
+        "show_saved_payment": {
+          "default": true,
+          "title": "Show Saved Payment",
+          "type": "boolean"
+        },
+        "brand_name": {
+          "default": "PayWeave Merchant",
+          "title": "Brand Name",
+          "type": "string"
+        },
+        "primary_color": {
+          "default": "#6366F1",
+          "title": "Primary Color",
+          "type": "string"
+        }
+      },
+      "title": "UIConfig",
+      "type": "object"
+    },
+    "UILayout": {
+      "enum": [
+        "compact",
+        "standard",
+        "expanded"
+      ],
+      "title": "UILayout",
+      "type": "string"
+    },
+    "UITheme": {
+      "enum": [
+        "minimal",
+        "dark_glass",
+        "light_corporate",
+        "vibrant_fintech"
+      ],
+      "title": "UITheme",
+      "type": "string"
+    }
+  },
+  "properties": {
+    "version": {
+      "default": "1.0.0",
+      "title": "Version",
+      "type": "string"
+    },
+    "merchant": {
+      "$ref": "#/$defs/MerchantInfo"
+    },
+    "payment": {
+      "$ref": "#/$defs/PaymentConfig"
+    },
+    "routing": {
+      "$ref": "#/$defs/RoutingConfig"
+    },
+    "authentication": {
+      "$ref": "#/$defs/AuthenticationConfig"
+    },
+    "risk": {
+      "$ref": "#/$defs/RiskConfig"
+    },
+    "anomaly": {
+      "$ref": "#/$defs/AnomalyConfig"
+    },
+    "infrastructure": {
+      "$ref": "#/$defs/InfrastructureConfig"
+    },
+    "payment_page": {
+      "$ref": "#/$defs/UIConfig"
+    },
+    "flow_nodes": {
+      "anyOf": [
+        {
+          "items": {
+            "$ref": "#/$defs/FlowNode"
+          },
+          "type": "array"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Flow Nodes"
+    }
+  },
+  "title": "PayWeaveMerchantDSLSchema",
+  "type": "object",
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "description": "Declarative merchant self-service configuration schema for PayWeave payment framework. Enforces routing policies, fallback providers, risk limits, and infrastructure topologies."
+}

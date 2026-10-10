@@ -12,6 +12,7 @@ import hashlib
 from typing import Dict, Any, List, Optional, Tuple
 from payweave.dsl.schema import MerchantConfig
 from payweave.dsl.parser import DSLParser
+from payweave.dsl.validator import DSLValidator
 from payweave.runtime.functional_core import PaymentState, transition_payment_state, Result
 
 
@@ -38,6 +39,20 @@ class PayWeaveDatabase:
                     version TEXT,
                     config_yaml TEXT,
                     updated_at REAL
+                )
+            """)
+
+            # Merchant config historical versions table
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS merchant_config_versions (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    merchant_id TEXT NOT NULL,
+                    version TEXT NOT NULL,
+                    config_yaml TEXT NOT NULL,
+                    comment TEXT,
+                    created_by TEXT,
+                    created_at REAL NOT NULL,
+                    UNIQUE(merchant_id, version)
                 )
             """)
 
@@ -143,33 +158,125 @@ class PayWeaveDatabase:
 
             conn.commit()
 
-    # --- Merchant Configuration Persistence ---
+    # --- Merchant Configuration Persistence & Versioning ---
 
-    def save_merchant_config(self, config: MerchantConfig, user_role: str = "Merchant Admin") -> None:
+    def save_merchant_config(
+        self,
+        config: MerchantConfig,
+        user_role: str = "Merchant Admin",
+        comment: str = "Configuration update"
+    ) -> None:
+        """
+        Validates and saves a merchant configuration, creating a versioned snapshot.
+        Raises ValueError if configuration fails semantic or schema validation.
+        """
+        validation_result = DSLValidator.validate_dict(config.model_dump())
+        if not validation_result.is_valid:
+            error_msgs = [f"{e.field}: {e.message}" for e in validation_result.errors]
+            raise ValueError(f"Invalid merchant configuration: {'; '.join(error_msgs)}")
+
         yaml_content = DSLParser.to_yaml(config)
         now = time.time()
         with self._get_connection() as conn:
             cursor = conn.cursor()
+            # 1. Update or insert current active config
             cursor.execute("""
                 INSERT OR REPLACE INTO merchant_configs (merchant_id, version, config_yaml, updated_at)
                 VALUES (?, ?, ?, ?)
             """, (config.merchant.id, config.version, yaml_content, now))
-            
+
+            # 2. Store historical version snapshot
             cursor.execute("""
-                INSERT INTO config_audit_log (merchant_id, changed_field, previous_value, new_value, user_role, updated_at)
-                VALUES (?, ?, ?, ?, ?, ?)
-            """, (config.merchant.id, "full_config", "previous_version", config.merchant.name, user_role, now))
+                INSERT OR REPLACE INTO merchant_config_versions (
+                    merchant_id, version, config_yaml, comment, created_by, created_at
+                ) VALUES (?, ?, ?, ?, ?, ?)
+            """, (config.merchant.id, config.version, yaml_content, comment, user_role, now))
+
+            # 3. Audit trail
+            cursor.execute("""
+                INSERT INTO config_audit_log (
+                    merchant_id, changed_field, previous_value, new_value, user_role, updated_at
+                ) VALUES (?, ?, ?, ?, ?, ?)
+            """, (config.merchant.id, "config_version", "active", f"version:{config.version}", user_role, now))
             conn.commit()
 
-    def get_merchant_config(self, merchant_id: str = "merchant_demo") -> Optional[MerchantConfig]:
+    def get_merchant_config(
+        self,
+        merchant_id: str = "merchant_demo",
+        version: Optional[str] = None
+    ) -> Optional[MerchantConfig]:
+        """
+        Retrieves active configuration for merchant_id, or a specific historical version if version is provided.
+        """
         with self._get_connection() as conn:
             cursor = conn.cursor()
-            cursor.execute("SELECT config_yaml FROM merchant_configs WHERE merchant_id = ?", (merchant_id,))
+            if version:
+                cursor.execute(
+                    "SELECT config_yaml FROM merchant_config_versions WHERE merchant_id = ? AND version = ?",
+                    (merchant_id, version)
+                )
+            else:
+                cursor.execute(
+                    "SELECT config_yaml FROM merchant_configs WHERE merchant_id = ?",
+                    (merchant_id,)
+                )
             row = cursor.fetchone()
             if row:
                 config, _ = DSLParser.parse_yaml(row["config_yaml"])
                 return config
         return None
+
+    def list_config_versions(self, merchant_id: str = "merchant_demo") -> List[Dict[str, Any]]:
+        """
+        Lists all recorded configuration versions for a merchant ordered newest first.
+        """
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("""
+                SELECT version, comment, created_by, created_at
+                FROM merchant_config_versions
+                WHERE merchant_id = ?
+                ORDER BY created_at DESC
+            """, (merchant_id,))
+            rows = cursor.fetchall()
+            return [dict(r) for r in rows]
+
+    def rollback_merchant_config(
+        self,
+        merchant_id: str,
+        target_version: str,
+        user_role: str = "Merchant Admin"
+    ) -> MerchantConfig:
+        """
+        Rolls back the active merchant configuration to target_version.
+        Raises ValueError if target_version does not exist.
+        """
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute(
+                "SELECT config_yaml FROM merchant_config_versions WHERE merchant_id = ? AND version = ?",
+                (merchant_id, target_version)
+            )
+            row = cursor.fetchone()
+            if not row:
+                raise ValueError(f"Version '{target_version}' not found for merchant '{merchant_id}'.")
+
+            yaml_content = row["config_yaml"]
+            config, _ = DSLParser.parse_yaml(yaml_content)
+            now = time.time()
+
+            cursor.execute("""
+                INSERT OR REPLACE INTO merchant_configs (merchant_id, version, config_yaml, updated_at)
+                VALUES (?, ?, ?, ?)
+            """, (merchant_id, target_version, yaml_content, now))
+
+            cursor.execute("""
+                INSERT INTO config_audit_log (
+                    merchant_id, changed_field, previous_value, new_value, user_role, updated_at
+                ) VALUES (?, ?, ?, ?, ?, ?)
+            """, (merchant_id, "rollback", "previous_active", f"restored:{target_version}", user_role, now))
+            conn.commit()
+            return config
 
     # --- Payment State Machine & Lifecycle Persistence ---
 

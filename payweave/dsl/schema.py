@@ -125,3 +125,31 @@ class MerchantConfig(BaseModel):
     infrastructure: InfrastructureConfig = Field(default_factory=InfrastructureConfig)
     payment_page: UIConfig = Field(default_factory=UIConfig)
     flow_nodes: Optional[List[FlowNode]] = Field(default=None)
+
+
+REGISTERED_PROVIDERS = {"psp-a", "psp-b", "psp-c"}
+
+
+def get_dsl_json_schema() -> Dict[str, Any]:
+    """Generates the official JSON Schema Draft-07 specification for MerchantConfig."""
+    schema = MerchantConfig.model_json_schema()
+    schema["$schema"] = "http://json-schema.org/draft-07/schema#"
+    schema["title"] = "PayWeaveMerchantDSLSchema"
+    schema["description"] = (
+        "Declarative merchant self-service configuration schema for PayWeave payment framework. "
+        "Enforces routing policies, fallback providers, risk limits, and infrastructure topologies."
+    )
+    return schema
+
+
+def write_dsl_json_schema(filepath: str = "payweave/dsl/dsl_schema.json") -> str:
+    """Exports the JSON Schema to the given filepath and returns the JSON string."""
+    import json
+    from pathlib import Path
+    schema_dict = get_dsl_json_schema()
+    content = json.dumps(schema_dict, indent=2)
+    path = Path(filepath)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(content, encoding="utf-8")
+    return content
+
