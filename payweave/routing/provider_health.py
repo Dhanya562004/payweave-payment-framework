@@ -16,9 +16,11 @@ class ProviderHealthTracker:
     """Tracks live success rates, latencies, and circuit breaker status for PSP adapters."""
 
     def __init__(self, provider_adapters: Dict[str, BasePSPAdapter], window_size: int = 50,
-                 circuit_failure_threshold: int = 3, circuit_cooldown_seconds: float = 5.0):
+                 circuit_failure_threshold: int = 3, circuit_cooldown_seconds: float = 5.0,
+                 shared_state: Any = None):
         self.adapters = provider_adapters
         self.window_size = window_size
+        self.shared_state = shared_state
         self._history: Dict[str, deque] = {
             pid: deque(maxlen=window_size) for pid in provider_adapters
         }
@@ -44,6 +46,22 @@ class ProviderHealthTracker:
                 self.circuit_breakers[provider_id].record_success()
             else:
                 self.circuit_breakers[provider_id].record_failure(is_timeout=is_timeout)
+
+        # Sync to distributed shared state store if configured
+        if self.shared_state:
+            try:
+                cb = self.circuit_breakers.get(provider_id)
+                if cb:
+                    self.shared_state.set_circuit_breaker_state(provider_id, cb.to_dict())
+                h = self.get_health(provider_id)
+                self.shared_state.set_provider_health(provider_id, {
+                    "success_rate": h.success_rate,
+                    "latency_ms": h.latency_ms,
+                    "is_healthy": h.is_healthy,
+                    "circuit_breaker": h.circuit_breaker
+                })
+            except Exception:
+                pass
 
     def get_circuit_breaker(self, provider_id: str) -> Optional[CircuitBreaker]:
         return self.circuit_breakers.get(provider_id)
@@ -112,3 +130,8 @@ class ProviderHealthTracker:
             cb.reset()
         for adapter in self.adapters.values():
             adapter.recover()
+        if self.shared_state:
+            try:
+                self.shared_state.reset_state()
+            except Exception:
+                pass
