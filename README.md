@@ -19,6 +19,9 @@
 
 ## 🌟 1. What is PayWeave?
 
+> 🚀 **Live Production Deployment**: Experience PayWeave's real-time payment routing engine, self-service DSL config editor with 1-click rollback, and failure injection simulator live on Streamlit Cloud:  
+> **[https://payweave-payment-framework-pxtcmxmheexmcuyul6lkmy.streamlit.app/](https://payweave-payment-framework-pxtcmxmheexmcuyul6lkmy.streamlit.app/)**
+
 **PayWeave** is an independent declarative payment application and intelligent infrastructure framework. Instead of writing brittle, hardcoded payment routing code, PayWeave enables merchants to define end-to-end payment flows, adaptive authentication, dynamic provider scoring, fault-tolerant circuit breakers, and multi-datacenter topologies declaratively using a **Declarative YAML DSL**.
 
 ### Independent Portfolio Disclaimer
@@ -212,6 +215,16 @@ payment_page:
 | `POST /payment/create` | 500 | 15 | 9.872s | **50.65 req/s** | 14.45 ms | 1,128.86 ms | 6,991.17 ms | 1.2% | ACID transactions + idempotency keys |
 | `POST /payment/simulate` | 500 | 15 | 11.502s | **43.47 req/s** | 127.15 ms | 1,516.35 ms | 5,304.86 ms | 0.2% | End-to-end routing + provider simulation |
 
+### 3. Dedicated k6 CLI Load Test Script
+In addition to in-process `httpx` async benchmarks, a production-grade script specifically formatted for the **k6 CLI runner** is available at [`benchmarks/k6_load_test.js`](benchmarks/k6_load_test.js):
+```bash
+# Run multi-stage concurrent load test against local or staging endpoints
+k6 run benchmarks/k6_load_test.js
+```
+- **Ramping Stages**: Warmup (10 VUs) -> Peak Load (30 VUs) -> Cooldown.
+- **SLA Thresholds**: `http_req_duration: ['p(95)<150', 'p(99)<250']`, `http_req_failed: ['rate<0.01']`.
+- **Endpoints Exercised**: `/routing/decision`, `/payment/create` (with unique UUID idempotency key per VU), and `/payment/simulate`.
+
 ---
 
 ## 🧮 6. Functional Core & Formal Verification
@@ -243,8 +256,9 @@ Payment business rules are inherently policy-heavy logic where uncontrolled exce
 - **Failover**: Bengaluru DC2 (`ap-south-1b`, baseline 42ms cross-region latency).
 - Automatic capacity scaling from 1,000 to 1,800 TPS upon primary DC degradation.
 
-### Docker Compose Generator
-- Programmatic generator in `payweave/infrastructure/docker_generator.py` converting merchant DSL into production-ready `docker-compose.yml`.
+### Docker Compose & Kubernetes Generator
+- **Docker Compose**: Programmatic generator in `payweave/infrastructure/docker_generator.py` converting merchant DSL into production-ready `docker-compose.yml`.
+- **Kubernetes (K8s)**: Declarative generator in `payweave/infrastructure/k8s_generator.py` producing full production manifests at [`infrastructure/k8s/payweave-k8s.yaml`](infrastructure/k8s/payweave-k8s.yaml) including FastAPI Deployments (with `livenessProbe` / `readinessProbe`), ClusterIP Services, Streamlit UI Deployment & Service, Redis StatefulSet with PersistentVolumeClaim, ConfigMap, and HorizontalPodAutoscaler (HPA).
 
 ---
 
@@ -285,12 +299,13 @@ pytest --cov=payweave --cov=benchmarks --cov-report=term-missing
 ```
 
 **Measured Test Output:**
-- **92 passed in 8.90s (100% pass rate)**
+- **94 passed in 7.53s (100% pass rate)**
 - **76% total package code coverage**
   - `functional_core.py`: **93%**
   - `circuit_breaker.py`: **98%**
   - `scoring.py`: **98%**
   - `docker_generator.py`: **100%**
+  - `k8s_generator.py`: **100%**
   - `database.py`: **86%**
 
 ### React SDK Suite (`Vitest`)
@@ -366,6 +381,16 @@ API docs available at `http://localhost:8000/docs`.
 | `POST` | `/anomaly/detect` | Run statistical Z-score anomaly detection |
 | `POST` | `/infrastructure/simulate` | Trigger multi-DC failure injection and failover |
 | `GET` | `/metrics` | Retrieve live provider health metrics and transaction history |
+
+---
+
+## 🌐 13. Open-Source Ecosystem Contributions
+
+### Juspay Hyperswitch (`juspay/hyperswitch`)
+Active open-source contribution to Juspay's flagship payment router and switch:
+- **Issue**: [#14577](https://github.com/juspay/hyperswitch/issues/14577) — *[DOCS] Local setup guide doesn't mention protoc, which is required to build*
+- **Pull Request**: Standardized Protocol Buffers compiler (`protoc`) setup instructions and verification commands across Ubuntu/Linux, Windows WSL2, Windows native (`winget`), and macOS (`brew`) in `docs/try_local_system.md`.
+- **Contribution Details**: Full documentation, verified commands, and PR guidelines available in [`docs/hyperswitch_contribution/`](docs/hyperswitch_contribution/).
 
 ---
 
