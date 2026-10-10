@@ -373,7 +373,15 @@ elif page == "🎛️ Merchant Console":
     st.markdown("### Merchant Self-Service Console")
     st.caption("Declarative customization portal for payment methods, risk policies, step-up authentication, and UI styling.")
 
-    tabs = st.tabs(["📋 General & Methods", "🔀 Routing Policies", "🛡️ Risk & Auth Rules", "🎨 UI Customization", "📄 Export YAML DSL", "📜 Audit Log"])
+    tabs = st.tabs([
+        "📋 General & Methods",
+        "🔀 Routing Policies",
+        "🛡️ Risk & Auth Rules",
+        "🎨 UI Customization",
+        "📄 Live YAML & Schema Validator",
+        "🔄 Version History & Rollback",
+        "📜 Audit Log"
+    ])
 
     with tabs[0]:
         st.markdown("#### Merchant Parameters")
@@ -386,6 +394,10 @@ elif page == "🎛️ Merchant Console":
             engine.config.merchant.id = m_id
             engine.config.payment.methods = selected_methods
             engine.reload_config(engine.config)
+            try:
+                engine.db.save_merchant_config(engine.config, comment="Updated general settings")
+            except Exception:
+                pass
             st.success("Merchant config updated successfully!")
 
     with tabs[1]:
@@ -403,6 +415,10 @@ elif page == "🎛️ Merchant Console":
             engine.config.routing.fallback.enabled = fallback_enabled
             engine.config.routing.fallback.max_retries = max_retries
             engine.reload_config(engine.config)
+            try:
+                engine.db.save_merchant_config(engine.config, comment="Updated routing policies")
+            except Exception:
+                pass
             st.success("Routing strategy saved!")
 
     with tabs[2]:
@@ -419,6 +435,10 @@ elif page == "🎛️ Merchant Console":
             engine.config.authentication.mode = AuthMode(auth_mode)
             engine.config.authentication.step_up_threshold = step_up_th
             engine.reload_config(engine.config)
+            try:
+                engine.db.save_merchant_config(engine.config, comment="Updated security & risk rules")
+            except Exception:
+                pass
             st.success("Security policies saved!")
 
     with tabs[3]:
@@ -430,14 +450,95 @@ elif page == "🎛️ Merchant Console":
             engine.config.payment_page.brand_name = brand
             engine.config.payment_page.primary_color = color
             engine.reload_config(engine.config)
+            try:
+                engine.db.save_merchant_config(engine.config, comment="Updated checkout styling")
+            except Exception:
+                pass
             st.success("Checkout UI theme updated!")
 
     with tabs[4]:
-        st.markdown("#### Generated Declarative YAML DSL")
-        yaml_out = DSLParser.to_yaml(engine.config)
-        st.code(yaml_out, language="yaml")
+        st.markdown("#### Live YAML Editor & Draft-07 Schema Validator")
+        st.caption("Edit merchant configuration YAML directly with real-time semantic schema verification.")
+        current_yaml = DSLParser.to_yaml(engine.config)
+        yaml_input = st.text_area("Merchant DSL YAML", value=current_yaml, height=320)
+        
+        col_v1, col_v2 = st.columns(2)
+        with col_v1:
+            if st.button("🔍 Validate against JSON Schema", use_container_width=True):
+                parsed_cfg, val_res = DSLParser.parse_yaml(yaml_input)
+                if val_res.is_valid:
+                    st.success("✅ Configuration is valid according to PayWeave Draft-07 schema and semantic rules!")
+                    if val_res.warnings:
+                        for w in val_res.warnings:
+                            st.warning(f"⚠️ {w.code}: {w.message}")
+                else:
+                    st.error("❌ Validation Failed:")
+                    for err in val_res.errors:
+                        st.error(f"• [{err.field}] {err.message}")
+
+        with col_v2:
+            new_version_tag = st.text_input("Version Tag for Save", value=f"v{engine.config.version}.1")
+            save_comment = st.text_input("Change Log Note", value="Manual YAML update via merchant console")
+            if st.button("💾 Save as Active Version", use_container_width=True):
+                parsed_cfg, val_res = DSLParser.parse_yaml(yaml_input)
+                if not val_res.is_valid:
+                    st.error("Cannot save invalid configuration!")
+                else:
+                    parsed_cfg.version = new_version_tag
+                    engine.reload_config(parsed_cfg)
+                    try:
+                        engine.db.save_merchant_config(parsed_cfg, comment=save_comment)
+                        st.success(f"Configuration version '{new_version_tag}' saved and activated!")
+                        time.sleep(0.5)
+                        st.rerun()
+                    except Exception as ex:
+                        st.error(f"Save failed: {ex}")
 
     with tabs[5]:
+        st.markdown("#### 🔄 Configuration Versioning & Rollback")
+        st.caption("Roll back active routing and payment policies to any previously recorded historical snapshot.")
+        
+        m_id = engine.config.merchant.id
+        versions = engine.db.list_config_versions(m_id)
+        
+        if not versions:
+            st.info("No historical versions stored yet. Click below to create initial baseline snapshot.")
+            if st.button("📸 Snapshot Current Version (v1.0.0)"):
+                engine.db.save_merchant_config(engine.config, comment="Initial baseline snapshot")
+                st.success("Snapshot created!")
+                st.rerun()
+        else:
+            v_options = [v["version"] for v in versions]
+            st.markdown(f"**Current Active Version**: `{engine.config.version}`")
+            
+            selected_v = st.selectbox(
+                "Select Historical Version to Inspect / Rollback",
+                v_options,
+                help="Choose a previous configuration to view its content or restore it."
+            )
+            
+            v_meta = next((v for v in versions if v["version"] == selected_v), None)
+            if v_meta:
+                v_time = time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(v_meta['created_at']))
+                st.markdown(f"**Created At**: `{v_time}` | **Author**: `{v_meta.get('created_by', 'Admin')}` | **Note**: *{v_meta.get('comment', '')}*")
+            
+            hist_cfg = engine.db.get_merchant_config(m_id, version=selected_v)
+            if hist_cfg:
+                with st.expander("📄 View Configuration YAML Snapshot", expanded=False):
+                    st.code(DSLParser.to_yaml(hist_cfg), language="yaml")
+            
+            st.markdown("---")
+            if st.button(f"⏪ Rollback Active Configuration to '{selected_v}'", type="primary"):
+                try:
+                    restored = engine.db.rollback_merchant_config(m_id, selected_v, user_role="Merchant Admin (UI)")
+                    engine.reload_config(restored)
+                    st.success(f"Successfully rolled back to configuration version '{selected_v}'!")
+                    time.sleep(0.8)
+                    st.rerun()
+                except Exception as e:
+                    st.error(f"Rollback failed: {e}")
+
+    with tabs[6]:
         st.markdown("#### Configuration Change Audit Log")
         audit_logs = engine.db.get_audit_logs()
         if audit_logs:

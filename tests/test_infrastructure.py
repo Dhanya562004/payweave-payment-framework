@@ -149,3 +149,26 @@ def test_docker_compose_file_writing(tmp_path):
     assert os.path.exists(target)
     assert "payweave-api" in written
 
+
+def test_kubernetes_manifest_generator():
+    from payweave.infrastructure.k8s_generator import KubernetesManifestGenerator
+    cfg = MerchantConfig()
+    cfg.merchant.id = "merchant_k8s_test"
+    manifest = KubernetesManifestGenerator.generate(cfg)
+    
+    assert "apiVersion: apps/v1" in manifest
+    assert "kind: Deployment" in manifest
+    assert "payweave-api" in manifest
+    assert "redis-shared-state" in manifest
+    assert "HorizontalPodAutoscaler" in manifest
+    assert "payweave-system" in manifest
+
+
+def test_kubernetes_manifest_file_writing(tmp_path):
+    from payweave.infrastructure.k8s_generator import KubernetesManifestGenerator
+    target = str(tmp_path / "payweave-k8s.yaml")
+    cfg = MerchantConfig()
+    written = KubernetesManifestGenerator.write_manifests(output_path=target, config=cfg)
+    assert os.path.exists(target)
+    assert "payweave-system" in written
+
