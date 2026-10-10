@@ -1,0 +1,14 @@
+[
+  { "from": "CREATED", "to": "PENDING", "valid": true },
+  { "from": "PENDING", "to": "SUCCEEDED", "valid": true },
+  { "from": "PENDING", "to": "FAILED", "valid": true },
+  { "from": "PENDING", "to": "UNCERTAIN_TIMEOUT", "valid": true },
+  { "from": "UNCERTAIN_TIMEOUT", "to": "SUCCEEDED", "valid": true },
+  { "from": "UNCERTAIN_TIMEOUT", "to": "FAILED", "valid": true },
+  { "from": "CREATED", "to": "SUCCEEDED", "valid": false, "reason": "Cannot bypass PENDING execution" },
+  { "from": "CREATED", "to": "FAILED", "valid": false, "reason": "Cannot fail before submission" },
+  { "from": "SUCCEEDED", "to": "PENDING", "valid": false, "reason": "Terminal SUCCEEDED state cannot reopen" },
+  { "from": "SUCCEEDED", "to": "FAILED", "valid": false, "reason": "Terminal SUCCEEDED state cannot transition to FAILED" },
+  { "from": "FAILED", "to": "PENDING", "valid": false, "reason": "Terminal FAILED state cannot reopen without new payment request" },
+  { "from": "FAILED", "to": "SUCCEEDED", "valid": false, "reason": "Terminal FAILED state cannot transition to SUCCEEDED" }
+]

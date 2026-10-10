@@ -1,0 +1,12 @@
+[
+  { "error_message": "Gateway timeout 504 from upstream bank", "is_retry_eligible": true },
+  { "error_message": "Connection reset by peer on socket", "is_retry_eligible": true },
+  { "error_message": "Provider circuit breaker open", "is_retry_eligible": true },
+  { "error_message": "Upstream temporary latency spike detected", "is_retry_eligible": true },
+  { "error_message": "Payment amount must be greater than zero.", "is_retry_eligible": false },
+  { "error_message": "Currency 'JPY' is not accepted. Supported: ['INR', 'USD']", "is_retry_eligible": false },
+  { "error_message": "Customer ID cannot be empty.", "is_retry_eligible": false },
+  { "error_message": "Transaction risk score (0.95) exceeds max allowed threshold (0.30). Transaction blocked.", "is_retry_eligible": false },
+  { "error_message": "Payment method 'crypto' is not supported by merchant DSL configuration.", "is_retry_eligible": false },
+  { "error_message": "Duplicate idempotency key conflict detected.", "is_retry_eligible": false }
+]

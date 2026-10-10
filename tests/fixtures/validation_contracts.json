@@ -1,0 +1,80 @@
+[
+  {
+    "id": "val_valid_upi_inr",
+    "description": "Standard valid INR UPI payment request",
+    "request": {
+      "amount": 1500.0,
+      "currency": "INR",
+      "payment_method": "upi",
+      "customer_id": "cust_101",
+      "risk_score": 0.10
+    },
+    "expected_valid": true,
+    "expected_error_contains": null
+  },
+  {
+    "id": "val_zero_amount",
+    "description": "Zero amount request must be rejected",
+    "request": {
+      "amount": 0.0,
+      "currency": "INR",
+      "payment_method": "upi",
+      "customer_id": "cust_102",
+      "risk_score": 0.10
+    },
+    "expected_valid": false,
+    "expected_error_contains": "greater than zero"
+  },
+  {
+    "id": "val_negative_amount",
+    "description": "Negative amount request must be rejected",
+    "request": {
+      "amount": -500.0,
+      "currency": "INR",
+      "payment_method": "upi",
+      "customer_id": "cust_103",
+      "risk_score": 0.10
+    },
+    "expected_valid": false,
+    "expected_error_contains": "greater than zero"
+  },
+  {
+    "id": "val_unsupported_currency",
+    "description": "Unsupported foreign currency must be rejected",
+    "request": {
+      "amount": 250.0,
+      "currency": "JPY",
+      "payment_method": "upi",
+      "customer_id": "cust_104",
+      "risk_score": 0.10
+    },
+    "expected_valid": false,
+    "expected_error_contains": "not accepted"
+  },
+  {
+    "id": "val_empty_customer_id",
+    "description": "Blank customer ID must be rejected",
+    "request": {
+      "amount": 1000.0,
+      "currency": "INR",
+      "payment_method": "upi",
+      "customer_id": "",
+      "risk_score": 0.10
+    },
+    "expected_valid": false,
+    "expected_error_contains": "Customer ID cannot be empty"
+  },
+  {
+    "id": "val_unsupported_method",
+    "description": "Payment method not permitted by merchant config DSL must be rejected",
+    "request": {
+      "amount": 1000.0,
+      "currency": "INR",
+      "payment_method": "crypto",
+      "customer_id": "cust_105",
+      "risk_score": 0.10
+    },
+    "expected_valid": false,
+    "expected_error_contains": "not supported"
+  }
+]

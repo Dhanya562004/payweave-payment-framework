@@ -259,17 +259,17 @@ def evaluate_routing(req: PaymentRequest, ctx: PaymentContext) -> Result[Routing
     fallbacks = ctx.merchant_config.routing.fallback.fallback_providers
 
     scored_providers = []
-    max_lat = max([p.latency_ms for p in health_map.values()] or [500.0])
+    ref_latency = 500.0
 
     for pid, p in health_map.items():
         if not p.is_healthy or getattr(p, "circuit_breaker", "CLOSED") == "OPEN":
             continue
 
         succ_component = p.success_rate * weights.get("success_rate", 0.4)
-        lat_component = (1.0 - (min(p.latency_ms, max_lat) / (max_lat + 1e-5))) * weights.get("latency", 0.3)
+        lat_component = max(0.0, 1.0 - (min(p.latency_ms, ref_latency) / ref_latency)) * weights.get("latency", 0.3)
         health_component = (1.0 if p.is_healthy else 0.0) * weights.get("health", 0.15)
-        cost_component = (1.0 - p.cost_score) * weights.get("cost", 0.1)
-        cap_component = (p.capacity_pct / 100.0) * weights.get("capacity", 0.05)
+        cost_component = max(0.0, 1.0 - p.cost_score) * weights.get("cost", 0.1)
+        cap_component = (min(100.0, max(0.0, p.capacity_pct)) / 100.0) * weights.get("capacity", 0.05)
 
         total_score = succ_component + lat_component + health_component + cost_component + cap_component
         scored_providers.append((pid, total_score, p))

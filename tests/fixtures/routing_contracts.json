@@ -1,0 +1,59 @@
+[
+  {
+    "id": "route_all_healthy_psp_b_best",
+    "description": "PSP-B has superior latency and success rate, selected first",
+    "providers": {
+      "psp-a": { "success_rate": 0.985, "latency_ms": 140.0, "is_healthy": true, "cost_score": 0.70, "capacity_pct": 95.0, "circuit_breaker": "CLOSED" },
+      "psp-b": { "success_rate": 0.995, "latency_ms": 80.0,  "is_healthy": true, "cost_score": 0.85, "capacity_pct": 90.0, "circuit_breaker": "CLOSED" },
+      "psp-c": { "success_rate": 0.960, "latency_ms": 220.0, "is_healthy": true, "cost_score": 0.30, "capacity_pct": 100.0, "circuit_breaker": "CLOSED" }
+    },
+    "expected_success": true,
+    "expected_selected_provider": "psp-b",
+    "expected_error": null
+  },
+  {
+    "id": "route_unhealthy_exclusion",
+    "description": "Unhealthy provider is excluded even if it had high capacity",
+    "providers": {
+      "psp-a": { "success_rate": 0.0,   "latency_ms": 900.0, "is_healthy": false, "cost_score": 0.70, "capacity_pct": 95.0, "circuit_breaker": "CLOSED" },
+      "psp-b": { "success_rate": 0.990, "latency_ms": 110.0, "is_healthy": true,  "cost_score": 0.85, "capacity_pct": 90.0, "circuit_breaker": "CLOSED" },
+      "psp-c": { "success_rate": 0.965, "latency_ms": 220.0, "is_healthy": true,  "cost_score": 0.30, "capacity_pct": 100.0, "circuit_breaker": "CLOSED" }
+    },
+    "expected_success": true,
+    "expected_selected_provider": "psp-b",
+    "expected_error": null
+  },
+  {
+    "id": "route_circuit_breaker_open_exclusion",
+    "description": "Provider with circuit breaker OPEN is excluded from routing",
+    "providers": {
+      "psp-a": { "success_rate": 0.990, "latency_ms": 70.0,  "is_healthy": true, "cost_score": 0.50, "capacity_pct": 90.0, "circuit_breaker": "OPEN" },
+      "psp-b": { "success_rate": 0.985, "latency_ms": 110.0, "is_healthy": true, "cost_score": 0.50, "capacity_pct": 90.0, "circuit_breaker": "CLOSED" }
+    },
+    "expected_success": true,
+    "expected_selected_provider": "psp-b",
+    "expected_error": null
+  },
+  {
+    "id": "route_no_healthy_provider_available",
+    "description": "When every configured provider is degraded or open-circuit, routing fails explicitly",
+    "providers": {
+      "psp-a": { "success_rate": 0.0, "latency_ms": 800.0, "is_healthy": false, "cost_score": 0.70, "capacity_pct": 0.0, "circuit_breaker": "OPEN" },
+      "psp-b": { "success_rate": 0.0, "latency_ms": 900.0, "is_healthy": false, "cost_score": 0.85, "capacity_pct": 0.0, "circuit_breaker": "CLOSED" }
+    },
+    "expected_success": false,
+    "expected_selected_provider": null,
+    "expected_error": "No healthy provider available"
+  },
+  {
+    "id": "route_deterministic_tie_breaker",
+    "description": "Identical scores break tie deterministically via alphabetical provider ID",
+    "providers": {
+      "psp-z": { "success_rate": 0.990, "latency_ms": 100.0, "is_healthy": true, "cost_score": 0.50, "capacity_pct": 90.0, "circuit_breaker": "CLOSED" },
+      "psp-a": { "success_rate": 0.990, "latency_ms": 100.0, "is_healthy": true, "cost_score": 0.50, "capacity_pct": 90.0, "circuit_breaker": "CLOSED" }
+    },
+    "expected_success": true,
+    "expected_selected_provider": "psp-a",
+    "expected_error": null
+  }
+]

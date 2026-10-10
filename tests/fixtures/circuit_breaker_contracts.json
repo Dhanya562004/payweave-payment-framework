@@ -1,0 +1,42 @@
+[
+  {
+    "id": "cb_initial_closed",
+    "description": "Provider starts in CLOSED circuit state",
+    "from_state": null,
+    "event": "INIT",
+    "expected_state": "CLOSED",
+    "traffic_allowed": true
+  },
+  {
+    "id": "cb_trip_to_open",
+    "description": "Exceeding failure threshold trips circuit to OPEN",
+    "from_state": "CLOSED",
+    "event": "FAILURE_THRESHOLD_EXCEEDED",
+    "expected_state": "OPEN",
+    "traffic_allowed": false
+  },
+  {
+    "id": "cb_cooldown_to_half_open",
+    "description": "After cooldown duration passes, circuit transitions to HALF_OPEN probe",
+    "from_state": "OPEN",
+    "event": "COOLDOWN_ELAPSED",
+    "expected_state": "HALF_OPEN",
+    "traffic_allowed": true
+  },
+  {
+    "id": "cb_half_open_probe_success",
+    "description": "Successful probe in HALF_OPEN recovers circuit to CLOSED",
+    "from_state": "HALF_OPEN",
+    "event": "PROBE_SUCCESS",
+    "expected_state": "CLOSED",
+    "traffic_allowed": true
+  },
+  {
+    "id": "cb_half_open_probe_failure",
+    "description": "Failed probe in HALF_OPEN immediately re-trips circuit to OPEN",
+    "from_state": "HALF_OPEN",
+    "event": "PROBE_FAILURE",
+    "expected_state": "OPEN",
+    "traffic_allowed": false
+  }
+]
