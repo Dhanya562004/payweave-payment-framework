@@ -277,10 +277,6 @@ st.markdown("""
         <div class="status-badge">🟢 OPERATIONAL SLA: 99.9%</div>
     </div>
 </div>
-<div class="disclaimer-banner">
-    ⚠️ <b>Portfolio Simulation Notice:</b> PayWeave is an architectural demonstration framework.
-    All transactions, provider metrics, and telemetry are synthetic simulations. No real money or bank credentials are used.
-</div>
 """, unsafe_allow_html=True)
 
 
