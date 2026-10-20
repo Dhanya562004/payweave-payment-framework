@@ -11,7 +11,7 @@
 [![Python Version](https://img.shields.io/badge/Python-3.13-3776AB?style=for-the-badge&logo=python)](https://www.python.org/)
 [![License](https://img.shields.io/badge/License-MIT-green.style=for-the-badge)](LICENSE)
 
-[🌐 **Explore Live Application Demo**](https://payweave-payment-framework-pxtcmxmheexmcuyul6lkmy.streamlit.app/) • [📖 **API Reference**](#-17-fastapi-rest-endpoints) • [🧪 **Test Suite**](#-13-test-suite--code-coverage-results) • [⚡ **React SDK**](#-11-react-merchant-checkout-sdk)
+[🌐 **Explore Live Application Demo**](https://payweave-payment-framework-pxtcmxmheexmcuyul6lkmy.streamlit.app/) • [📖 **API Reference**](#-14-fastapi-rest-endpoints) • [📊 **Performance Benchmarks**](#-5-measured-engineering-performance-evidence) • [🧪 **Test Suite**](#-9-test-suite--code-coverage-results) • [⚡ **React SDK**](#-8-react--typescript-checkout-sdk)
 
 </div>
 
@@ -306,14 +306,14 @@ pytest --cov=payweave --cov=benchmarks --cov-report=term-missing
 ```
 
 **Measured Test Output:**
-- **94 passed in 7.53s (100% pass rate)**
-- **76% total package code coverage**
+- **95 passed in 7.35s (100% pass rate)** — includes full regression suite + high-concurrency ACID and idempotency stress tests
+- **75% total package code coverage**
   - `functional_core.py`: **93%**
   - `circuit_breaker.py`: **98%**
   - `scoring.py`: **98%**
   - `docker_generator.py`: **100%**
   - `k8s_generator.py`: **100%**
-  - `database.py`: **86%**
+  - `database.py`: **74%** (full transaction lifecycle coverage)
 
 ### React SDK Suite (`Vitest`)
 Run in `sdk/react`:
