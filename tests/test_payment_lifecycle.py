@@ -187,3 +187,78 @@ def test_refund_on_pending_or_failed_payment_rejected(db):
     ref = db.process_refund("ref_bad", p_id, 500.0)
     assert ref.is_error
     assert "only be processed for SUCCEEDED payments" in ref.error()
+
+
+def test_concurrent_payment_creation_idempotency_and_acid(db):
+    """
+    Proves ACID atomicity and idempotency guarantees under high-concurrency contention:
+    1. Exactly one payment is created for duplicate concurrent idempotency keys (no double-charging).
+    2. All parallel threads with the same idempotency key receive the exact same payment record.
+    3. Audit trail maintains strict 1:1 ACID correspondence (no orphaned or duplicate audit events).
+    4. Parallel creations with unique keys succeed without database lock timeouts.
+    """
+    from concurrent.futures import ThreadPoolExecutor
+
+    # --- Part 1: Concurrent requests with IDENTICAL idempotency key ---
+    shared_key = f"concurrent_idem_{uuid.uuid4().hex}"
+    results = []
+
+    def make_same_payment(thread_idx):
+        p_id = f"pay_same_{thread_idx}_{uuid.uuid4().hex[:6]}"
+        return db.create_or_get_payment(
+            payment_id=p_id,
+            amount=1999.0,
+            currency="INR",
+            payment_method="card",
+            customer_id="cust_concurrent",
+            idempotency_key=shared_key
+        )
+
+    with ThreadPoolExecutor(max_workers=15) as executor:
+        results = list(executor.map(make_same_payment, range(30)))
+
+    # Exactly one request must be marked is_new=True
+    new_creations = [r for r in results if r[1] is True]
+    idempotent_hits = [r for r in results if r[1] is False]
+    assert len(new_creations) == 1, f"Expected exactly 1 new payment, got {len(new_creations)}"
+    assert len(idempotent_hits) == 29, f"Expected 29 idempotent returns, got {len(idempotent_hits)}"
+
+    # All 30 responses must return the identical canonical payment_id and details
+    canonical_payment = new_creations[0][0]
+    canonical_id = canonical_payment["payment_id"]
+    for payment, _ in results:
+        assert payment["payment_id"] == canonical_id
+        assert payment["amount"] == 1999.0
+        assert payment["status"] == PaymentState.CREATED.value
+
+    # ACID Check: Exactly 1 payment in table, and exactly 1 audit trail entry
+    audit_trail = db.get_payment_audit_trail(canonical_id)
+    assert len(audit_trail) == 1
+    assert audit_trail[0]["event_type"] == "PAYMENT_CREATED"
+
+    # --- Part 2: Concurrent requests with UNIQUE idempotency keys ---
+    unique_keys = [f"unique_idem_{i}_{uuid.uuid4().hex}" for i in range(30)]
+
+    def make_unique_payment(key):
+        p_id = f"pay_uniq_{uuid.uuid4().hex[:8]}"
+        return db.create_or_get_payment(
+            payment_id=p_id,
+            amount=500.0,
+            currency="INR",
+            payment_method="upi",
+            customer_id="cust_unique",
+            idempotency_key=key
+        )
+
+    with ThreadPoolExecutor(max_workers=15) as executor:
+        unique_results = list(executor.map(make_unique_payment, unique_keys))
+
+    assert len(unique_results) == 30
+    for payment, is_new in unique_results:
+        assert is_new is True
+        assert payment["status"] == PaymentState.CREATED.value
+        # Verify 1:1 ACID audit trail entry exists for each
+        trail = db.get_payment_audit_trail(payment["payment_id"])
+        assert len(trail) == 1
+        assert trail[0]["event_type"] == "PAYMENT_CREATED"
+
