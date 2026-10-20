@@ -1,0 +1,33 @@
+==================================================
+Executing Complete PayWeave Benchmark Suite
+==================================================
+
+--- 1. Pure In-Memory Routing & Failover Microbenchmarks ---
+
+--- 2. Telemetry Anomaly Detector Microbenchmark ---
+
+--- 3. FastAPI HTTP Endpoint Load Benchmark ---
+
+[HTTP Benchmark] Starting: FastAPI /routing/decision (1000 requests, concurrency=25)...
+  Completed 1000 requests in 1.43s | Throughput: 701.4 req/s
+  Latency (ms) -> Min: 2.548 | Mean: 34.798 | p50: 31.748 | p95: 67.303 | p99: 84.2 | Max: 113.649
+  Success: 1000 | Failures: 0 | Error Rate: 0.0%
+
+
+[HTTP Benchmark] Starting: FastAPI /payment/create (ACID + Idempotency) (500 requests, concurrency=15)...
+  Completed 500 requests in 12.47s | Throughput: 40.1 req/s
+  Latency (ms) -> Min: 13.063 | Mean: 363.161 | p50: 52.618 | p95: 2079.063 | p99: 7171.426 | Max: 7385.013
+  Success: 495 | Failures: 5 | Error Rate: 1.0%
+
+
+[HTTP Benchmark] Starting: FastAPI /payment/simulate (End-to-End Orchestration) (500 requests, concurrency=15)...
+  Completed 500 requests in 12.74s | Throughput: 39.2 req/s
+  Latency (ms) -> Min: 60.427 | Mean: 375.075 | p50: 175.271 | p95: 1832.483 | p99: 3821.692 | Max: 4716.514
+  Success: 495 | Failures: 5 | Error Rate: 1.0%
+
+HTTP benchmark results saved to benchmarks\results\http_benchmark_results.json and benchmarks\results\http_benchmark_results.md
+
+[SUCCESS] Benchmark Suite Completed Successfully!
+   - JSON Results: C:\Users\Deeksha\OneDrive\Desktop\PayWeave — Declarative Payment Application & Intelligent Infrastructure Framework\benchmarks\results
+   - CSV Summary:  C:\Users\Deeksha\OneDrive\Desktop\PayWeave — Declarative Payment Application & Intelligent Infrastructure Framework\benchmarks\results\benchmark_summary.csv
+==================================================
