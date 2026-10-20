@@ -32,14 +32,14 @@
 ---
 
 ### 2. What Was Reviewed by Human / Engineer
-- Reviewed baseline benchmark outputs and confirmed reproduction of the latency spike and error rate.
-- Verified that all 94 existing pytest test cases continue to pass alongside the new concurrency test (95 total tests passing in < 8s).
-- Validated that payment creation idempotency and audit trail consistency rules remain fully intact.
-- Reviewed and confirmed that three consecutive benchmark runs demonstrate reproducible improvements without inventing metrics.
+- The human engineer directed the optimization steps, reproduced benchmark requirements, and reviewed the updated performance documentation in the README:
+  - Directed the inclusion of the reproduced baseline metrics (40.10 req/s, 1.0% error rate, p95 2,079.06 ms, p99 7,171.43 ms) into the Section 5 benchmark table.
+  - Required reporting the exact ~4.4x throughput improvement calculation comparing the reproduced baseline (40.10 req/s) against the three-run optimized average (176.53 req/s), while cleanly distinguishing original published baseline, reproduced baseline, 3-run average, and fastest run.
+  - Mandated documenting production limitations regarding `synchronous=NORMAL` durability trade-offs, single-process `threading.Lock` scope, and unverified multi-worker/cross-process concurrency.
+  - Verified that all human review and rejection statements in this file are strictly factual and unembellished.
 
 ---
 
-### 3. What Was Rejected / Intentionally Not Done
-- **Rejected Replacing SQLite with an In-Memory Dict**: Bypassing persistence would invalidate the repository's ACID requirement and README architecture.
-- **Rejected Introducing Third-Party Async ORMs (e.g. `aiosqlite`, SQLAlchemy)**: This would introduce invasive API breaking changes across synchronous components (`engine.py`, `app.py`) without providing performance advantages over optimized native `sqlite3`.
-- **Rejected Removing the Double-Checked Idempotency Guard**: Although omitting the second check inside the write lock might save a microsecond, it would risk race conditions on duplicate idempotency keys.
+### 3. What Was Rejected by Human / Engineer
+- None. No proposals or suggestions were rejected by the user during this session.
+*(Note: Engineering decisions made during implementation—such as maintaining strict SQLite ACID persistence rather than an in-memory mock, and avoiding third-party async ORMs—were autonomous choices made by the AI agent to fulfill project constraints, not user rejections.)*
