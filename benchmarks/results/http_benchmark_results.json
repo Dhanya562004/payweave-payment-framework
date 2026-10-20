@@ -5,19 +5,19 @@
     "method": "POST",
     "total_requests": 1000,
     "concurrency": 25,
-    "duration_seconds": 0.734,
-    "throughput_rps": 1362.95,
+    "duration_seconds": 0.804,
+    "throughput_rps": 1244.48,
     "successes": 1000,
     "failures": 0,
     "error_rate_pct": 0.0,
     "latency_ms": {
-      "min": 3.619,
-      "mean": 18.0,
-      "p50": 16.945,
-      "p90": 21.844,
-      "p95": 27.359,
-      "p99": 41.989,
-      "max": 44.133
+      "min": 1.146,
+      "mean": 19.664,
+      "p50": 18.561,
+      "p90": 26.374,
+      "p95": 29.389,
+      "p99": 34.948,
+      "max": 46.81
     },
     "status_codes": {
       "200": 1000
@@ -29,22 +29,22 @@
     "method": "POST",
     "total_requests": 500,
     "concurrency": 15,
-    "duration_seconds": 9.872,
-    "throughput_rps": 50.65,
-    "successes": 494,
-    "failures": 6,
-    "error_rate_pct": 1.2,
+    "duration_seconds": 2.376,
+    "throughput_rps": 210.4,
+    "successes": 500,
+    "failures": 0,
+    "error_rate_pct": 0.0,
     "latency_ms": {
-      "min": 10.911,
-      "mean": 276.883,
-      "p50": 14.454,
-      "p90": 255.848,
-      "p95": 1128.858,
-      "p99": 6991.172,
-      "max": 7119.749
+      "min": 21.752,
+      "mean": 70.419,
+      "p50": 67.991,
+      "p90": 89.026,
+      "p95": 97.781,
+      "p99": 110.478,
+      "max": 112.716
     },
     "status_codes": {
-      "200": 494
+      "200": 500
     }
   },
   {
@@ -53,23 +53,23 @@
     "method": "POST",
     "total_requests": 500,
     "concurrency": 15,
-    "duration_seconds": 11.502,
-    "throughput_rps": 43.47,
-    "successes": 499,
-    "failures": 1,
-    "error_rate_pct": 0.2,
+    "duration_seconds": 1.95,
+    "throughput_rps": 256.43,
+    "successes": 182,
+    "failures": 318,
+    "error_rate_pct": 63.6,
     "latency_ms": {
-      "min": 61.037,
-      "mean": 335.496,
-      "p50": 127.152,
-      "p90": 510.701,
-      "p95": 1516.349,
-      "p99": 5304.863,
-      "max": 6544.036
+      "min": 51.35,
+      "mean": 57.461,
+      "p50": 55.402,
+      "p90": 64.542,
+      "p95": 70.695,
+      "p99": 88.516,
+      "max": 113.79
     },
     "status_codes": {
-      "200": 499,
-      "500": 1
+      "500": 318,
+      "200": 182
     }
   }
 ]

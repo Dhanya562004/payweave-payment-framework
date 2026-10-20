@@ -1,0 +1,75 @@
+[
+  {
+    "scenario": "FastAPI /routing/decision",
+    "endpoint": "/routing/decision",
+    "method": "POST",
+    "total_requests": 1000,
+    "concurrency": 25,
+    "duration_seconds": 1.426,
+    "throughput_rps": 701.44,
+    "successes": 1000,
+    "failures": 0,
+    "error_rate_pct": 0.0,
+    "latency_ms": {
+      "min": 2.548,
+      "mean": 34.798,
+      "p50": 31.748,
+      "p90": 58.843,
+      "p95": 67.303,
+      "p99": 84.2,
+      "max": 113.649
+    },
+    "status_codes": {
+      "200": 1000
+    }
+  },
+  {
+    "scenario": "FastAPI /payment/create (ACID + Idempotency)",
+    "endpoint": "/payment/create",
+    "method": "POST",
+    "total_requests": 500,
+    "concurrency": 15,
+    "duration_seconds": 12.469,
+    "throughput_rps": 40.1,
+    "successes": 495,
+    "failures": 5,
+    "error_rate_pct": 1.0,
+    "latency_ms": {
+      "min": 13.063,
+      "mean": 363.161,
+      "p50": 52.618,
+      "p90": 637.61,
+      "p95": 2079.063,
+      "p99": 7171.426,
+      "max": 7385.013
+    },
+    "status_codes": {
+      "200": 495
+    }
+  },
+  {
+    "scenario": "FastAPI /payment/simulate (End-to-End Orchestration)",
+    "endpoint": "/payment/simulate",
+    "method": "POST",
+    "total_requests": 500,
+    "concurrency": 15,
+    "duration_seconds": 12.741,
+    "throughput_rps": 39.24,
+    "successes": 495,
+    "failures": 5,
+    "error_rate_pct": 1.0,
+    "latency_ms": {
+      "min": 60.427,
+      "mean": 375.075,
+      "p50": 175.271,
+      "p90": 716.125,
+      "p95": 1832.483,
+      "p99": 3821.692,
+      "max": 4716.514
+    },
+    "status_codes": {
+      "200": 495,
+      "500": 5
+    }
+  }
+]

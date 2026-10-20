@@ -1,6 +1,6 @@
 {
   "benchmark_name": "Statistical Anomaly Detector Benchmark",
-  "timestamp": "2026-10-07 17:41:49",
+  "timestamp": "2026-10-20 16:31:41",
   "random_seed": 42,
   "num_batches_evaluated": 50,
   "records_per_batch": 40,
@@ -19,9 +19,9 @@
     "NONE": 140
   },
   "execution_time_stats_ms": {
-    "mean_batch_latency_ms": 0.0532,
-    "p95_batch_latency_ms": 0.0871,
-    "min_batch_latency_ms": 0.0406,
-    "max_batch_latency_ms": 0.2647
+    "mean_batch_latency_ms": 0.0653,
+    "p95_batch_latency_ms": 0.1124,
+    "min_batch_latency_ms": 0.0423,
+    "max_batch_latency_ms": 0.1334
   }
 }
